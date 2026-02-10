@@ -22,19 +22,9 @@ const wallpapers = [
 ];
 
 const Wallpapers: React.FC = () => {
-  const index = React.useMemo(() => {
-    const key = "tabliss.wallpapers.index";
-    const existing = sessionStorage.getItem(key);
-    if (existing !== null) {
-      const parsed = Number(existing);
-      if (!Number.isNaN(parsed) && parsed >= 0 && parsed < wallpapers.length) {
-        return parsed;
-      }
-    }
-    const next = Math.floor(Math.random() * wallpapers.length);
-    sessionStorage.setItem(key, String(next));
-    return next;
-  }, []);
+  const time = useTime("absolute");
+  const dayIndex = Math.floor(time.getTime() / (24 * 60 * 60 * 1000));
+  const index = dayIndex % wallpapers.length;
   const url = wallpapers[index];
 
   return (
