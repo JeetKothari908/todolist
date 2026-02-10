@@ -1,0 +1,56 @@
+import { nanoid as generateId } from "nanoid";
+import { Repeat } from "./reducer";
+
+export function addTodo(
+  contents = "",
+  meta?: { dueDate?: string; repeat?: Repeat },
+) {
+  return {
+    type: "ADD_TODO",
+    data: {
+      contents,
+      id: generateId(),
+      completed: false,
+      dueDate: meta?.dueDate,
+      repeat: meta?.repeat,
+    },
+  } as const;
+}
+
+export function removeTodo(id: string) {
+  return {
+    type: "REMOVE_TODO",
+    data: { id },
+  } as const;
+}
+
+export function toggleTodo(id: string) {
+  return {
+    type: "TOGGLE_TODO",
+    data: { id },
+  } as const;
+}
+
+export function updateTodo(id: string, contents: string) {
+  return {
+    type: "UPDATE_TODO",
+    data: { id, contents },
+  } as const;
+}
+
+export function updateTodoMeta(
+  id: string,
+  meta: { dueDate?: string; repeat?: Repeat },
+) {
+  return {
+    type: "UPDATE_TODO_META",
+    data: { id, ...meta },
+  } as const;
+}
+
+export type Action =
+  | ReturnType<typeof addTodo>
+  | ReturnType<typeof removeTodo>
+  | ReturnType<typeof toggleTodo>
+  | ReturnType<typeof updateTodo>
+  | ReturnType<typeof updateTodoMeta>;
