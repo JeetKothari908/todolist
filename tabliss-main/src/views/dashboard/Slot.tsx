@@ -20,9 +20,24 @@ const Slot: React.FC<Props> = ({ position, widgets }) => {
     invalidIds.forEach((id) => removeWidget(id));
   }, [invalidIds.join(",")]);
 
+  const priority = (key: string) => {
+    if (position === "middleCentre") {
+      if (key === "widget/time") return 0;
+      if (key === "widget/search") return 1;
+    }
+    return 2;
+  };
+
+  const orderedWidgets = [...widgets].sort((a, b) => {
+    const pa = priority(a.key);
+    const pb = priority(b.key);
+    if (pa !== pb) return pa - pb;
+    return a.order - b.order;
+  });
+
   return (
     <div className={`Slot ${position}`}>
-      {widgets.map(({ display, id, key }) => {
+      {orderedWidgets.map(({ display, id, key }) => {
         const config = getConfigSafe(key);
         if (!config) return null;
         return (

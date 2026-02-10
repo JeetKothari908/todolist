@@ -26,6 +26,11 @@
         max-height: 45vh
         overflow-y: auto
         padding-right: 6px
+        padding-top: 2px
+
+        > .item,
+        > .empty
+            margin-left: 2px
 
     .list.menu-open
         overflow: visible
@@ -59,6 +64,38 @@
         color: #6b6b6b
         cursor: pointer
         padding: 2px
+
+    .section-switch
+        background: transparent
+        border: 0
+        color: #6b6b6b
+        cursor: pointer
+        padding: 2px
+
+    .due-view-menu
+        position: absolute
+        margin-top: 36px
+        left: 0
+        background: #f0f0f0
+        border-radius: 10px
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15)
+        padding: 6px
+        display: grid
+        gap: 4px
+        z-index: 3
+
+        button
+            border: 0
+            background: transparent
+            text-align: left
+            font-size: 13px
+            color: #3c3c3c
+            padding: 6px 8px
+            border-radius: 6px
+            cursor: pointer
+
+        button.active
+            background: rgba(0, 0, 0, 0.08)
 
         svg
             width: 18px
@@ -240,6 +277,15 @@
             .menu-toggle.open
                 background: rgba(0, 0, 0, 0.05)
 
+            .due-today
+                border: 1px solid rgba(0, 0, 0, 0.12)
+                background: transparent
+                border-radius: 999px
+                padding: 2px 8px
+                font-size: 11px
+                color: #6f6f6f
+                cursor: pointer
+
         .menu
             margin-top: 8px
             background: #f0f0f0
@@ -337,7 +383,7 @@
 
     .custom-days
         display: flex
-        flex-wrap: wrap
+        flex-wrap: nowrap
         gap: 6px
 
 @media (max-width: 900px)

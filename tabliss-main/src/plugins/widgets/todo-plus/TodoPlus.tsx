@@ -49,6 +49,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [weekMenuOpen, setWeekMenuOpen] = useState(false);
   const [todayMenuOpen, setTodayMenuOpen] = useState(false);
   const [itemMenuId, setItemMenuId] = useState<string | null>(null);
+  const [draftItemMeta, setDraftItemMeta] = useState<{
+    id: string;
+    dueDate?: string;
+    repeat?: Repeat;
+  } | null>(null);
   const [dueDate, setDueDate] = useState<string | undefined>(undefined);
   const [repeatType, setRepeatType] = useState<
     "none" | "daily" | "weekly" | "custom"
@@ -57,12 +62,52 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [todayOpen, setTodayOpen] = useState(true);
   const [weekOpen, setWeekOpen] = useState(true);
   const [remainingOpen, setRemainingOpen] = useState(true);
+  const [dueView, setDueView] = useState<"today" | "week">("today");
+  const [dueViewMenuOpen, setDueViewMenuOpen] = useState(false);
+
+  const repeatEqual = (a?: Repeat, b?: Repeat) => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    if (a.type !== b.type) return false;
+    if (a.type === "custom" && b.type === "custom") {
+      const aDays = [...(a.days ?? [])].sort();
+      const bDays = [...(b.days ?? [])].sort();
+      return aDays.length === bDays.length && aDays.every((d, i) => d === bDays[i]);
+    }
+    return true;
+  };
+
+  const commitDraftItemMeta = () => {
+    if (!draftItemMeta) return;
+    const current = itemById.get(draftItemMeta.id);
+    if (!current) {
+      setDraftItemMeta(null);
+      return;
+    }
+    if (
+      current.dueDate !== draftItemMeta.dueDate ||
+      !repeatEqual(current.repeat, draftItemMeta.repeat)
+    ) {
+      dispatch(
+        updateTodoMeta(draftItemMeta.id, {
+          dueDate: draftItemMeta.dueDate,
+          repeat: draftItemMeta.repeat,
+        }),
+      );
+    }
+    setDraftItemMeta(null);
+  };
 
   const closeAllMenus = () => {
+    commitDraftItemMeta();
+    if (menuOpen && input.trim()) {
+      submitCurrentTask();
+    }
     setMenuOpen(false);
     setRemainingMenuOpen(false);
     setWeekMenuOpen(false);
     setTodayMenuOpen(false);
+    setDueViewMenuOpen(false);
     setItemMenuId(null);
   };
 
@@ -75,7 +120,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         target.closest(".item-popover") ||
         target.closest(".section-menu") ||
         target.closest(".item-menu") ||
-        target.closest(".menu-toggle")
+        target.closest(".menu-toggle") ||
+        target.closest(".due-view-menu") ||
+        target.closest(".due-view-toggle")
       ) {
         return;
       }
@@ -106,7 +153,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     return undefined;
   }, [repeatType, customDays]);
 
-  const handleAdd = () => {
+  function submitCurrentTask() {
     const trimmed = input.trim();
     if (!trimmed) return;
     dispatch(addTodo(trimmed, { dueDate, repeat }));
@@ -114,11 +161,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     setDueDate(undefined);
     setRepeatType("none");
     setCustomDays([]);
-    setMenuOpen(false);
-    setRemainingMenuOpen(false);
-    setWeekMenuOpen(false);
-    setTodayMenuOpen(false);
-    setItemMenuId(null);
+  }
+
+  const handleAdd = () => {
+    submitCurrentTask();
+    closeAllMenus();
   };
 
   const showMenuToggle = inputFocused || input.trim().length > 0;
@@ -126,7 +173,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const formatDueDate = (date?: string) => {
     if (!date) return null;
     const parsed = parseDate(date);
-    if (Number.isNaN(parsed.getTime())) return date;
+    if (!parsed || Number.isNaN(parsed.getTime())) return date;
     return parsed.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
@@ -211,6 +258,12 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const remaining = items.filter(
     (item) => !isDueToday(item) && !isDueThisWeek(item),
   );
+  const dueList = dueView === "today" ? dueToday : dueThisWeek;
+  const dueLabel = dueView === "today" ? "Due Today" : "Due This Week";
+  const dueOpen = dueView === "today" ? todayOpen : weekOpen;
+  const setDueOpen = dueView === "today" ? setTodayOpen : setWeekOpen;
+  const dueMenuOpen = dueView === "today" ? todayMenuOpen : weekMenuOpen;
+  const setDueMenuOpen = dueView === "today" ? setTodayMenuOpen : setWeekMenuOpen;
 
   const removeCompleted = (list: State) => {
     list.filter((item) => item.completed).forEach((item) => {
@@ -222,22 +275,6 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     () => new Map(items.map((item) => [item.id, item])),
     [items],
   );
-
-  const setItemMeta = (
-    id: string,
-    next: { dueDate?: string; repeat?: Repeat },
-    close = false,
-  ) => {
-    const current = itemById.get(id);
-    if (!current) return;
-    dispatch(
-      updateTodoMeta(id, {
-        dueDate: next.dueDate,
-        repeat: next.repeat,
-      }),
-    );
-    if (close) setItemMenuId(null);
-  };
 
   const renderRepeatMenu = (
     currentRepeat: Repeat | undefined,
@@ -294,6 +331,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                                 : [],
                           },
                 );
+                if (option !== "custom") {
+                  onClose?.();
+                }
               }}
             >
               {option === "none"
@@ -307,11 +347,16 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           ))}
         </div>
 
-        {(currentRepeat?.type ?? "none") === "custom" && (
+        {((currentRepeat?.type ?? "none") === "custom" ||
+          (currentRepeat?.type ?? "none") === "weekly") && (
           <div className="custom-days">
             {dayLabels.map((label, index) => {
               const days =
-                currentRepeat?.type === "custom" ? currentRepeat.days : [];
+                currentRepeat?.type === "custom"
+                  ? currentRepeat.days
+                  : currentRepeat?.type === "weekly"
+                    ? currentRepeat.days ?? []
+                    : [];
               const active = days.includes(index);
               return (
                 <button
@@ -319,11 +364,17 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   className={active ? "active" : ""}
                   onClick={() => {
                     onRepeatChange({
-                      type: "custom",
+                      type:
+                        (currentRepeat?.type ?? "none") === "weekly"
+                          ? "weekly"
+                          : "custom",
                       days: active
-                        ? days.filter((d) => d !== index)
+                        ? days.filter((d: number) => d !== index)
                         : days.concat(index),
                     });
+                    if ((currentRepeat?.type ?? "none") === "weekly") {
+                      onClose?.();
+                    }
                   }}
                 >
                   {label}
@@ -336,14 +387,20 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     </div>
   );
 
-  const renderItems = (list: State) =>
+  const renderItems = (
+    list: State,
+    options: { showDue: boolean; showRepeat: boolean } = {
+      showDue: true,
+      showRepeat: true,
+    },
+  ) =>
     list.map((item, index) => {
       const openUp = index >= list.length - 1;
       return (
-      <div
-        key={item.id}
-        className={`item${item.completed ? " completed" : ""}`}
-      >
+        <div
+          key={item.id}
+          className={`item${item.completed ? " completed" : ""}`}
+        >
         <button
           className="check"
           aria-label="Toggle task"
@@ -381,10 +438,15 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               </span>
             )}
 
-            {(item.dueDate || item.repeat) && (
+            {((options.showDue && item.dueDate) ||
+              (options.showRepeat && item.repeat)) && (
               <div className="meta inline">
-                {item.dueDate && <span>Due {formatDueDate(item.dueDate)}</span>}
-                {item.repeat && <span>{formatRepeat(item.repeat)}</span>}
+                {options.showDue && item.dueDate && (
+                  <span>Due {formatDueDate(item.dueDate)}</span>
+                )}
+                {options.showRepeat && item.repeat && (
+                  <span>{formatRepeat(item.repeat)}</span>
+                )}
               </div>
             )}
           </div>
@@ -395,6 +457,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           aria-label="Task options"
           onClick={() => {
             closeAllMenus();
+            setDraftItemMeta({
+              id: item.id,
+              dueDate: item.dueDate,
+              repeat: item.repeat,
+            });
             setItemMenuId((prev) => (prev === item.id ? null : item.id));
           }}
         >
@@ -404,17 +471,21 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         {itemMenuId === item.id && (
           <div className={`item-popover${openUp ? " up" : " down"}`}>
             {renderRepeatMenu(
-              item.repeat,
+              draftItemMeta?.repeat ?? item.repeat,
               (next) =>
-                setItemMeta(item.id, { dueDate: item.dueDate, repeat: next }),
-              item.dueDate,
+                setDraftItemMeta({
+                  id: item.id,
+                  dueDate: draftItemMeta?.dueDate ?? item.dueDate,
+                  repeat: next,
+                }),
+              draftItemMeta?.dueDate ?? item.dueDate,
               (next) =>
-                setItemMeta(
-                  item.id,
-                  { dueDate: next, repeat: item.repeat },
-                  true,
-                ),
-              () => setItemMenuId(null),
+                setDraftItemMeta({
+                  id: item.id,
+                  dueDate: next,
+                  repeat: draftItemMeta?.repeat ?? item.repeat,
+                }),
+              undefined,
             )}
           </div>
         )}
@@ -426,7 +497,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         >
           <RemoveIcon />
         </button>
-      </div>
+        </div>
+      );
     });
 
   const listHasOpenItemMenu = (list: State) =>
@@ -438,18 +510,40 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         <div className="header">
           <div className="section-title">
             <button
-              className="section-toggle"
-              onClick={() => setWeekOpen(!weekOpen)}
-              aria-label="Collapse list"
+              className="section-toggle due-view-toggle"
+              onClick={() => setDueViewMenuOpen((prev) => !prev)}
+              aria-label="Choose due view"
             >
-              <span className="section-label">Tasks due This Week</span>
-              <Icon name={weekOpen ? "chevron-down" : "chevron-right"} />
+              <span className="section-label">{dueLabel}</span>
+              <Icon name={dueOpen ? "chevron-down" : "chevron-right"} />
             </button>
+            {dueViewMenuOpen && (
+              <div className="due-view-menu">
+                <button
+                  className={dueView === "today" ? "active" : ""}
+                  onClick={() => {
+                    setDueView("today");
+                    setDueViewMenuOpen(false);
+                  }}
+                >
+                  Due Today
+                </button>
+                <button
+                  className={dueView === "week" ? "active" : ""}
+                  onClick={() => {
+                    setDueView("week");
+                    setDueViewMenuOpen(false);
+                  }}
+                >
+                  Due This Week
+                </button>
+              </div>
+            )}
             <button
               className="section-menu"
               onClick={() => {
                 closeAllMenus();
-                setWeekMenuOpen(true);
+                setDueMenuOpen(true);
               }}
               aria-label="List options"
             >
@@ -459,69 +553,30 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         </div>
         <div
           className={`list ${
-            weekMenuOpen || listHasOpenItemMenu(dueThisWeek)
-              ? "menu-open"
-              : ""
+            dueMenuOpen || listHasOpenItemMenu(dueList) ? "menu-open" : ""
           }`}
         >
-          {weekMenuOpen && (
+          {dueMenuOpen && (
             <div className="list-menu">
-              <button onClick={() => setWeekMenuOpen(false)}>Settings</button>
-              <button onClick={() => removeCompleted(dueThisWeek)}>
+              <button onClick={() => setDueMenuOpen(false)}>Settings</button>
+              <button onClick={() => removeCompleted(dueList)}>
                 Delete completed items
               </button>
             </div>
           )}
-          {weekOpen && (
+          {dueOpen && (
             <>
-              {dueThisWeek.length ? renderItems(dueThisWeek) : (
-                <div className="empty">No tasks due this week</div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="header">
-          <div className="section-title">
-            <button
-              className="section-toggle"
-              onClick={() => setTodayOpen(!todayOpen)}
-              aria-label="Collapse list"
-            >
-              <span className="section-label">Tasks due Today</span>
-              <Icon name={todayOpen ? "chevron-down" : "chevron-right"} />
-            </button>
-            <button
-              className="section-menu"
-              onClick={() => {
-                closeAllMenus();
-                setTodayMenuOpen(true);
-              }}
-              aria-label="List options"
-            >
-              <Icon name="more-horizontal" />
-            </button>
-          </div>
-        </div>
-        <div
-          className={`list ${
-            todayMenuOpen || listHasOpenItemMenu(dueToday) ? "menu-open" : ""
-          }`}
-        >
-          {todayMenuOpen && (
-            <div className="list-menu">
-              <button onClick={() => setTodayMenuOpen(false)}>Settings</button>
-              <button onClick={() => removeCompleted(dueToday)}>
-                Delete completed items
-              </button>
-            </div>
-          )}
-          {todayOpen && (
-            <>
-              {dueToday.length ? renderItems(dueToday) : (
-                <div className="empty">No tasks due today</div>
+              {dueList.length ? (
+                renderItems(dueList, {
+                  showDue: dueView !== "today",
+                  showRepeat: false,
+                })
+              ) : (
+                <div className="empty">
+                  {dueView === "today"
+                    ? "No tasks due today"
+                    : "No tasks due this week"}
+                </div>
               )}
             </>
           )}
@@ -569,7 +624,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           )}
           {remainingOpen && (
             <>
-              {remaining.length ? renderItems(remaining) : (
+              {remaining.length ? (
+                renderItems(remaining, { showDue: true, showRepeat: false })
+              ) : (
                 <div className="empty">No remaining tasks</div>
               )}
             </>
@@ -592,6 +649,15 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               }}
             />
 
+            {showMenuToggle && (
+              <button
+                className="due-today"
+                onClick={() => setDueDate(getYmd(new Date()))}
+                aria-label="Set due today"
+              >
+                Due Today
+              </button>
+            )}
             {showMenuToggle && (
               <button
                 className={`menu-toggle${menuOpen ? " open" : ""}`}

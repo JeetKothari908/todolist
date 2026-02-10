@@ -18,6 +18,9 @@ const Dashboard: React.FC = () => {
   return (
     <div className={`Dashboard fullscreen ${theme}`}>
       <Background />
+      {DEV && BUILD_TARGET !== "web" && (
+        <div className="DevBadge">Extension active</div>
+      )}
       <Widgets />
       <Overlay />
     </div>

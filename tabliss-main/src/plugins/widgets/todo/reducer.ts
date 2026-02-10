@@ -12,7 +12,7 @@ export type State = Todo[];
 
 export type Repeat =
   | { type: "daily" }
-  | { type: "weekly" }
+  | { type: "weekly"; days?: number[] }
   | { type: "custom"; days: number[] };
 
 export function reducer(state: State, action: Action) {

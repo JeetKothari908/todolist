@@ -74,10 +74,18 @@ const initData: State = {
       position: "middleCentre",
     },
   },
+  "widget/default-search": {
+    id: "default-search",
+    key: "widget/search",
+    order: 1,
+    display: {
+      position: "middleCentre",
+    },
+  },
   "widget/default-todo": {
     id: "default-todo",
     key: "widget/todo",
-    order: 1,
+    order: 2,
     display: {
       position: "bottomRight",
     },
