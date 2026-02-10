@@ -1,5 +1,6 @@
 import { DB } from "../lib";
 import { importStore } from "./action";
+import { selectWidgets } from "./select";
 import { cache, db } from "./state";
 
 /** Migrate extension data */
@@ -15,6 +16,7 @@ const migrateExtension = async (): Promise<void> => {
     }
     await browser.storage.sync.remove(key);
   }
+  ensureQuoteWidget();
 };
 
 /** Migrate web data */
@@ -32,6 +34,7 @@ const migrateWeb = async (): Promise<void> => {
     }
     localStorage.removeItem(key);
   }
+  ensureQuoteWidget();
 };
 
 /** Check and migrate data */
@@ -70,6 +73,22 @@ const findUsedIds = (): Set<string> => {
     if (val !== null) used.add(val.id);
   }
   return used;
+};
+
+const ensureQuoteWidget = (): void => {
+  const hasQuote = Array.from(DB.prefix(db, "widget/")).some(
+    ([, val]) => val !== null && val.key === "widget/quote",
+  );
+  if (hasQuote) return;
+
+  const widgets = selectWidgets();
+  const order = widgets.length > 0 ? widgets[widgets.length - 1].order + 1 : 0;
+  DB.put(db, "widget/default-quote", {
+    id: "default-quote",
+    key: "widget/quote",
+    order,
+    display: { position: "middleCentre" },
+  });
 };
 
 /** Find and remove dangling data stored from previous versions */

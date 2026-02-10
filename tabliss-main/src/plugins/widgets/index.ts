@@ -4,6 +4,7 @@ import js from "./js";
 import links from "./links";
 import message from "./message";
 import notes from "./notes";
+import quote from "./quote";
 import search from "./search";
 import time from "./time";
 import todo from "./todo-plus";
@@ -17,6 +18,7 @@ export const widgetConfigs = [
   notes,
   time,
   search,
+  quote,
   todo,
   workHours,
 ];

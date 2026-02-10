@@ -26,27 +26,11 @@ const parseDate = (value?: string) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const startOfWeek = (date: Date) => {
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = start.getDay();
-  const diff = (day + 6) % 7; // Monday start
-  start.setDate(start.getDate() - diff);
-  return start;
-};
-
-const endOfWeek = (date: Date) => {
-  const start = startOfWeek(date);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  return end;
-};
-
 const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [input, setInput] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [remainingMenuOpen, setRemainingMenuOpen] = useState(false);
-  const [weekMenuOpen, setWeekMenuOpen] = useState(false);
   const [todayMenuOpen, setTodayMenuOpen] = useState(false);
   const [itemMenuId, setItemMenuId] = useState<string | null>(null);
   const [draftItemMeta, setDraftItemMeta] = useState<{
@@ -60,10 +44,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   >("none");
   const [customDays, setCustomDays] = useState<number[]>([]);
   const [todayOpen, setTodayOpen] = useState(true);
-  const [weekOpen, setWeekOpen] = useState(true);
   const [remainingOpen, setRemainingOpen] = useState(true);
-  const [dueView, setDueView] = useState<"today" | "week">("today");
-  const [dueViewMenuOpen, setDueViewMenuOpen] = useState(false);
 
   const repeatEqual = (a?: Repeat, b?: Repeat) => {
     if (!a && !b) return true;
@@ -105,9 +86,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     }
     setMenuOpen(false);
     setRemainingMenuOpen(false);
-    setWeekMenuOpen(false);
     setTodayMenuOpen(false);
-    setDueViewMenuOpen(false);
     setItemMenuId(null);
   };
 
@@ -121,8 +100,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         target.closest(".section-menu") ||
         target.closest(".item-menu") ||
         target.closest(".menu-toggle") ||
-        target.closest(".due-view-menu") ||
-        target.closest(".due-view-toggle")
+        target.closest(".due-view-menu")
       ) {
         return;
       }
@@ -139,13 +117,12 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const today = new Date();
   const todayYmd = getYmd(today);
   const todayDay = today.getDay();
-  const weekStart = startOfWeek(today);
-  const weekEnd = endOfWeek(today);
-  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
   const repeat: Repeat | undefined = useMemo(() => {
     if (repeatType === "daily") return { type: "daily" };
-    if (repeatType === "weekly") return { type: "weekly" };
+    if (repeatType === "weekly") {
+      return customDays.length ? { type: "weekly", days: customDays } : { type: "weekly" };
+    }
     if (repeatType === "custom") {
       const days = [...customDays].sort((a, b) => a - b);
       return days.length > 0 ? { type: "custom", days } : undefined;
@@ -168,6 +145,20 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     closeAllMenus();
   };
 
+  const handleAddWithDueDate = (date: string) => {
+    const trimmed = input.trim();
+    if (!trimmed) {
+      setDueDate(date);
+      return;
+    }
+    dispatch(addTodo(trimmed, { dueDate: date, repeat }));
+    setInput("");
+    setDueDate(undefined);
+    setRepeatType("none");
+    setCustomDays([]);
+    closeAllMenus();
+  };
+
   const showMenuToggle = inputFocused || input.trim().length > 0;
 
   const formatDueDate = (date?: string) => {
@@ -182,14 +173,14 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
 
   const formatRepeat = (value?: Repeat) => {
     if (!value) return null;
-    if (value.type === "daily") return "Repeats daily";
-    if (value.type === "weekly") return "Repeats weekly";
+    if (value.type === "daily") return "Daily";
+    if (value.type === "weekly") return "Weekly";
     if (value.type === "custom") {
       const days =
         value.days?.length > 0
           ? value.days.map((day) => dayLabels[day]).join(", ")
           : "";
-      return days ? `Repeats ${days}` : "Repeats custom";
+      return days ? days : "Custom";
     }
     return null;
   };
@@ -205,18 +196,6 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     return null;
   };
 
-  const getUpcomingWeekDaysFrom = (start: Date) => {
-    const days: number[] = [];
-    const cursor = new Date(start);
-    while (cursor <= weekEnd) {
-      days.push(cursor.getDay());
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return days;
-  };
-
-  const upcomingWeekDays = getUpcomingWeekDaysFrom(tomorrow);
-
   const isDueToday = (item: State[number]) => {
     if (item.dueDate && item.dueDate === todayYmd) return true;
 
@@ -231,39 +210,14 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     return repeatDays.includes(todayDay);
   };
 
-  const isDueThisWeek = (item: State[number]) => {
-    if (item.dueDate) {
-      const parsed = parseDate(item.dueDate);
-      if (!parsed) return false;
-      if (!item.repeat) {
-        return parsed >= tomorrow && parsed <= weekEnd;
-      }
-      if (parsed > weekEnd) return false;
-      if (parsed > today) {
-        const days = getUpcomingWeekDaysFrom(parsed);
-        const repeatDays = getRepeatDays(item) ?? [];
-        return repeatDays.some((day) => days.includes(day));
-      }
-    }
-
-    const repeatDays = getRepeatDays(item);
-    if (!repeatDays || repeatDays.length === 0) return false;
-    return repeatDays.some((day) => upcomingWeekDays.includes(day));
-  };
-
   const dueToday = items.filter((item) => isDueToday(item));
-  const dueThisWeek = items.filter(
-    (item) => !isDueToday(item) && isDueThisWeek(item),
-  );
-  const remaining = items.filter(
-    (item) => !isDueToday(item) && !isDueThisWeek(item),
-  );
-  const dueList = dueView === "today" ? dueToday : dueThisWeek;
-  const dueLabel = dueView === "today" ? "Due Today" : "Due This Week";
-  const dueOpen = dueView === "today" ? todayOpen : weekOpen;
-  const setDueOpen = dueView === "today" ? setTodayOpen : setWeekOpen;
-  const dueMenuOpen = dueView === "today" ? todayMenuOpen : weekMenuOpen;
-  const setDueMenuOpen = dueView === "today" ? setTodayMenuOpen : setWeekMenuOpen;
+  const remaining = items.filter((item) => !isDueToday(item));
+  const dueList = dueToday;
+  const dueLabel = "Due Today";
+  const dueOpen = todayOpen;
+  const setDueOpen = setTodayOpen;
+  const dueMenuOpen = todayMenuOpen;
+  const setDueMenuOpen = setTodayMenuOpen;
 
   const removeCompleted = (list: State) => {
     list.filter((item) => item.completed).forEach((item) => {
@@ -281,7 +235,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     onRepeatChange: (next?: Repeat) => void,
     currentDueDate?: string,
     onDueDateChange?: (next?: string) => void,
-    onClose?: () => void,
+    onClose?: (next?: { dueDate?: string; repeat?: Repeat }) => void,
   ) => (
     <div className="menu">
       <div className="menu-row">
@@ -299,8 +253,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             type="date"
             value={currentDueDate ?? ""}
             onChange={(event) => {
-              onDueDateChange?.(event.target.value || undefined);
-              onClose?.();
+              const nextDueDate = event.target.value || undefined;
+              onDueDateChange?.(nextDueDate);
+              onClose?.({ dueDate: nextDueDate, repeat: currentRepeat });
             }}
           />
         </label>
@@ -316,23 +271,31 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 (currentRepeat?.type ?? "none") === option ? "active" : ""
               }
               onClick={() => {
-                onRepeatChange(
+                const nextRepeat =
                   option === "none"
                     ? undefined
                     : option === "daily"
                       ? { type: "daily" }
                       : option === "weekly"
-                        ? { type: "weekly" }
+                        ? {
+                            type: "weekly",
+                            days:
+                              currentRepeat?.type === "weekly"
+                                ? currentRepeat.days
+                                : currentRepeat?.type === "custom"
+                                  ? currentRepeat.days
+                                  : [todayDay],
+                          }
                         : {
                             type: "custom",
                             days:
                               currentRepeat?.type === "custom"
                                 ? currentRepeat.days
                                 : [],
-                          },
-                );
-                if (option !== "custom") {
-                  onClose?.();
+                          };
+                onRepeatChange(nextRepeat);
+                if (option === "daily" || option === "none") {
+                  onClose?.({ dueDate: currentDueDate, repeat: nextRepeat });
                 }
               }}
             >
@@ -351,6 +314,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           (currentRepeat?.type ?? "none") === "weekly") && (
           <div className="custom-days">
             {dayLabels.map((label, index) => {
+              const isWeekly = (currentRepeat?.type ?? "none") === "weekly";
               const days =
                 currentRepeat?.type === "custom"
                   ? currentRepeat.days
@@ -363,18 +327,18 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   key={label}
                   className={active ? "active" : ""}
                   onClick={() => {
+                    if (isWeekly) {
+                      const nextRepeat = { type: "weekly", days: [index] };
+                      onRepeatChange(nextRepeat);
+                      onClose?.({ dueDate: currentDueDate, repeat: nextRepeat });
+                      return;
+                    }
                     onRepeatChange({
-                      type:
-                        (currentRepeat?.type ?? "none") === "weekly"
-                          ? "weekly"
-                          : "custom",
+                      type: "custom",
                       days: active
                         ? days.filter((d: number) => d !== index)
                         : days.concat(index),
                     });
-                    if ((currentRepeat?.type ?? "none") === "weekly") {
-                      onClose?.();
-                    }
                   }}
                 >
                   {label}
@@ -442,7 +406,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               (options.showRepeat && item.repeat)) && (
               <div className="meta inline">
                 {options.showDue && item.dueDate && (
-                  <span>Due {formatDueDate(item.dueDate)}</span>
+                  <span>{formatDueDate(item.dueDate)}</span>
                 )}
                 {options.showRepeat && item.repeat && (
                   <span>{formatRepeat(item.repeat)}</span>
@@ -485,7 +449,35 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   dueDate: next,
                   repeat: draftItemMeta?.repeat ?? item.repeat,
                 }),
-              undefined,
+              (next) => {
+                const current = itemById.get(item.id);
+                if (!current) {
+                  setDraftItemMeta(null);
+                  setItemMenuId(null);
+                  return;
+                }
+                const nextDueDate =
+                  next?.dueDate ??
+                  draftItemMeta?.dueDate ??
+                  item.dueDate;
+                const nextRepeat =
+                  next?.repeat ??
+                  draftItemMeta?.repeat ??
+                  item.repeat;
+                if (
+                  current.dueDate !== nextDueDate ||
+                  !repeatEqual(current.repeat, nextRepeat)
+                ) {
+                  dispatch(
+                    updateTodoMeta(item.id, {
+                      dueDate: nextDueDate,
+                      repeat: nextRepeat,
+                    }),
+                  );
+                }
+                setDraftItemMeta(null);
+                setItemMenuId(null);
+              },
             )}
           </div>
         )}
@@ -510,35 +502,13 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         <div className="header">
           <div className="section-title">
             <button
-              className="section-toggle due-view-toggle"
-              onClick={() => setDueViewMenuOpen((prev) => !prev)}
-              aria-label="Choose due view"
+              className="section-toggle"
+              onClick={() => setDueOpen(!dueOpen)}
+              aria-label="Collapse list"
             >
               <span className="section-label">{dueLabel}</span>
               <Icon name={dueOpen ? "chevron-down" : "chevron-right"} />
             </button>
-            {dueViewMenuOpen && (
-              <div className="due-view-menu">
-                <button
-                  className={dueView === "today" ? "active" : ""}
-                  onClick={() => {
-                    setDueView("today");
-                    setDueViewMenuOpen(false);
-                  }}
-                >
-                  Due Today
-                </button>
-                <button
-                  className={dueView === "week" ? "active" : ""}
-                  onClick={() => {
-                    setDueView("week");
-                    setDueViewMenuOpen(false);
-                  }}
-                >
-                  Due This Week
-                </button>
-              </div>
-            )}
             <button
               className="section-menu"
               onClick={() => {
@@ -558,8 +528,20 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         >
           {dueMenuOpen && (
             <div className="list-menu">
-              <button onClick={() => setDueMenuOpen(false)}>Settings</button>
-              <button onClick={() => removeCompleted(dueList)}>
+              <button
+                onClick={() => {
+                  setDueMenuOpen(false);
+                  closeAllMenus();
+                }}
+              >
+                Settings
+              </button>
+              <button
+                onClick={() => {
+                  removeCompleted(dueList);
+                  closeAllMenus();
+                }}
+              >
                 Delete completed items
               </button>
             </div>
@@ -568,15 +550,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             <>
               {dueList.length ? (
                 renderItems(dueList, {
-                  showDue: dueView !== "today",
-                  showRepeat: false,
+                  showDue: true,
+                  showRepeat: true,
                 })
               ) : (
-                <div className="empty">
-                  {dueView === "today"
-                    ? "No tasks due today"
-                    : "No tasks due this week"}
-                </div>
+                <div className="empty">No tasks due today</div>
               )}
             </>
           )}
@@ -616,8 +594,20 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         >
           {remainingMenuOpen && (
             <div className="list-menu">
-              <button onClick={() => setRemainingMenuOpen(false)}>Settings</button>
-              <button onClick={() => removeCompleted(remaining)}>
+              <button
+                onClick={() => {
+                  setRemainingMenuOpen(false);
+                  closeAllMenus();
+                }}
+              >
+                Settings
+              </button>
+              <button
+                onClick={() => {
+                  removeCompleted(remaining);
+                  closeAllMenus();
+                }}
+              >
                 Delete completed items
               </button>
             </div>
@@ -625,7 +615,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           {remainingOpen && (
             <>
               {remaining.length ? (
-                renderItems(remaining, { showDue: true, showRepeat: false })
+                renderItems(remaining, { showDue: true, showRepeat: true })
               ) : (
                 <div className="empty">No remaining tasks</div>
               )}
@@ -652,7 +642,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             {showMenuToggle && (
               <button
                 className="due-today"
-                onClick={() => setDueDate(getYmd(new Date()))}
+                onClick={() => handleAddWithDueDate(getYmd(new Date()))}
                 aria-label="Set due today"
               >
                 Due Today
@@ -679,7 +669,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 : repeatType === "daily"
                   ? { type: "daily" }
                   : repeatType === "weekly"
-                    ? { type: "weekly" }
+                    ? { type: "weekly", days: customDays }
                     : { type: "custom", days: customDays },
               (next) => {
                 if (!next) {
@@ -690,7 +680,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   setCustomDays([]);
                 } else if (next.type === "weekly") {
                   setRepeatType("weekly");
-                  setCustomDays([]);
+                  setCustomDays(next.days ?? []);
                 } else {
                   setRepeatType("custom");
                   setCustomDays(next.days);
@@ -698,6 +688,13 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               },
               dueDate,
               (next) => setDueDate(next),
+              (next) => {
+                if (next?.dueDate) {
+                  handleAddWithDueDate(next.dueDate);
+                } else {
+                  handleAdd();
+                }
+              },
             )}
         </div>
       </div>

@@ -82,10 +82,18 @@ const initData: State = {
       position: "middleCentre",
     },
   },
+  "widget/default-quote": {
+    id: "default-quote",
+    key: "widget/quote",
+    order: 2,
+    display: {
+      position: "middleCentre",
+    },
+  },
   "widget/default-todo": {
     id: "default-todo",
     key: "widget/todo",
-    order: 2,
+    order: 3,
     display: {
       position: "bottomRight",
     },

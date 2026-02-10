@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useCachedEffect } from "../../../hooks";
 import { HOURS } from "../../../utils";
 import { getQuote } from "./api";
@@ -30,10 +30,7 @@ const Quote: React.FC<Props> = ({
       <h4 className="QuoteContent">
         “{cache.quote}”
         {cache.author && (
-          <sub>
-            <br />
-            &mdash; {cache.author}
-          </sub>
+          <sub className="QuoteAuthor">{cache.author}</sub>
         )}
       </h4>
     </div>
