@@ -48,9 +48,25 @@ export function updateTodoMeta(
   } as const;
 }
 
+export function completeInstance(id: string) {
+  return {
+    type: "COMPLETE_INSTANCE",
+    data: { id },
+  } as const;
+}
+
+export function completeTask(id: string) {
+  return {
+    type: "COMPLETE_TASK",
+    data: { id },
+  } as const;
+}
+
 export type Action =
   | ReturnType<typeof addTodo>
   | ReturnType<typeof removeTodo>
   | ReturnType<typeof toggleTodo>
   | ReturnType<typeof updateTodo>
-  | ReturnType<typeof updateTodoMeta>;
+  | ReturnType<typeof updateTodoMeta>
+  | ReturnType<typeof completeInstance>
+  | ReturnType<typeof completeTask>;

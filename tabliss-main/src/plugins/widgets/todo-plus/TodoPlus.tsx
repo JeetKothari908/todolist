@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "react";
+import React, { FC, useEffect, useMemo, useRef, useState } from "react";
 
 import { useSavedReducer } from "../../../hooks";
 import { Icon, RemoveIcon } from "../../../views/shared";
@@ -26,12 +26,64 @@ const parseDate = (value?: string) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const addDays = (date: Date, days: number) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+
+const nextRepeatDate = (
+  repeat: Repeat,
+  dueDate: string | undefined,
+  today: Date,
+): Date | null => {
+  const base = parseDate(dueDate) ?? today;
+  if (repeat.type === "daily") return addDays(base, 1);
+
+  const selectedDays =
+    repeat.type === "custom"
+      ? repeat.days
+      : repeat.days && repeat.days.length
+        ? repeat.days
+        : [base.getDay()];
+
+  if (!selectedDays.length) return null;
+  for (let offset = 1; offset <= 7; offset += 1) {
+    const candidate = addDays(base, offset);
+    if (selectedDays.includes(candidate.getDay())) return candidate;
+  }
+  return null;
+};
+
+const firstRepeatDate = (repeat: Repeat, today: Date): Date | null => {
+  if (repeat.type === "daily") return today;
+  const selectedDays =
+    repeat.type === "custom"
+      ? repeat.days
+      : repeat.days && repeat.days.length
+        ? repeat.days
+        : [today.getDay()];
+  if (!selectedDays.length) return null;
+  for (let offset = 0; offset <= 6; offset += 1) {
+    const candidate = addDays(today, offset);
+    if (selectedDays.includes(candidate.getDay())) return candidate;
+  }
+  return null;
+};
+
 const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const anchorTopRef = useRef<number | null>(null);
+  const duePanelRef = useRef<HTMLDivElement | null>(null);
+  const dueListRef = useRef<HTMLDivElement | null>(null);
+  const remainingPanelRef = useRef<HTMLDivElement | null>(null);
+  const remainingListRef = useRef<HTMLDivElement | null>(null);
+
   const [input, setInput] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [remainingMenuOpen, setRemainingMenuOpen] = useState(false);
-  const [todayMenuOpen, setTodayMenuOpen] = useState(false);
+  const [dueListMenuOpen, setDueListMenuOpen] = useState(false);
+  const [dueViewMenuOpen, setDueViewMenuOpen] = useState(false);
+  const [dueView, setDueView] = useState<"today" | "finished">("today");
+  const [completeMenuId, setCompleteMenuId] = useState<string | null>(null);
   const [itemMenuId, setItemMenuId] = useState<string | null>(null);
   const [draftItemMeta, setDraftItemMeta] = useState<{
     id: string;
@@ -43,8 +95,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     "none" | "daily" | "weekly" | "custom"
   >("none");
   const [customDays, setCustomDays] = useState<number[]>([]);
-  const [todayOpen, setTodayOpen] = useState(true);
+  const [dueOpen, setDueOpen] = useState(true);
   const [remainingOpen, setRemainingOpen] = useState(true);
+  const [listCaps, setListCaps] = useState({ due: 220, remaining: 220 });
 
   const repeatEqual = (a?: Repeat, b?: Repeat) => {
     if (!a && !b) return true;
@@ -86,7 +139,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     }
     setMenuOpen(false);
     setRemainingMenuOpen(false);
-    setTodayMenuOpen(false);
+    setDueListMenuOpen(false);
+    setDueViewMenuOpen(false);
+    setCompleteMenuId(null);
     setItemMenuId(null);
   };
 
@@ -100,7 +155,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         target.closest(".section-menu") ||
         target.closest(".item-menu") ||
         target.closest(".menu-toggle") ||
-        target.closest(".due-view-menu")
+        target.closest(".due-view-menu") ||
+        target.closest(".complete-menu")
       ) {
         return;
       }
@@ -140,8 +196,24 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     setCustomDays([]);
   }
 
+  const submitTaskWithMeta = (meta?: { dueDate?: string; repeat?: Repeat }) => {
+    const trimmed = input.trim();
+    if (!trimmed) return false;
+    dispatch(
+      addTodo(trimmed, {
+        dueDate: meta?.dueDate ?? dueDate,
+        repeat: meta?.repeat ?? repeat,
+      }),
+    );
+    setInput("");
+    setDueDate(undefined);
+    setRepeatType("none");
+    setCustomDays([]);
+    return true;
+  };
+
   const handleAdd = () => {
-    submitCurrentTask();
+    submitTaskWithMeta();
     closeAllMenus();
   };
 
@@ -151,11 +223,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       setDueDate(date);
       return;
     }
-    dispatch(addTodo(trimmed, { dueDate: date, repeat }));
-    setInput("");
-    setDueDate(undefined);
-    setRepeatType("none");
-    setCustomDays([]);
+    submitTaskWithMeta({ dueDate: date });
     closeAllMenus();
   };
 
@@ -185,6 +253,15 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     return null;
   };
 
+  const getRepeatDerivedDueDate = (repeat?: Repeat) => {
+    if (!repeat) return undefined;
+    const firstDate = firstRepeatDate(repeat, today);
+    return firstDate ? getYmd(firstDate) : undefined;
+  };
+
+  const getTaskDisplayDueDate = (item: State[number]) =>
+    item.dueDate ?? (item.repeat ? getRepeatDerivedDueDate(item.repeat) : undefined);
+
   const getRepeatDays = (item: State[number]) => {
     if (!item.repeat) return null;
     if (item.repeat.type === "daily") return [0, 1, 2, 3, 4, 5, 6];
@@ -210,14 +287,28 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     return repeatDays.includes(todayDay);
   };
 
-  const dueToday = items.filter((item) => isDueToday(item));
-  const remaining = items.filter((item) => !isDueToday(item));
-  const dueList = dueToday;
-  const dueLabel = "Due Today";
-  const dueOpen = todayOpen;
-  const setDueOpen = setTodayOpen;
-  const dueMenuOpen = todayMenuOpen;
-  const setDueMenuOpen = setTodayMenuOpen;
+  const activeItems = items.filter((item) => !item.completed);
+  const finished = items.filter((item) => item.completed);
+  const dueToday = activeItems.filter((item) => isDueToday(item));
+  const remaining = activeItems.filter((item) => !isDueToday(item));
+  const remainingSorted = [...remaining].sort((a, b) => {
+    const aDue = getTaskDisplayDueDate(a);
+    const bDue = getTaskDisplayDueDate(b);
+    if (!aDue && !bDue) return 0;
+    if (!aDue) return -1;
+    if (!bDue) return 1;
+    return aDue.localeCompare(bDue);
+  });
+  const finishedSorted = [...finished].sort((a, b) => {
+    const aDue = getTaskDisplayDueDate(a);
+    const bDue = getTaskDisplayDueDate(b);
+    if (!aDue && !bDue) return 0;
+    if (!aDue) return -1;
+    if (!bDue) return 1;
+    return aDue.localeCompare(bDue);
+  });
+  const dueList = dueView === "today" ? dueToday : finishedSorted;
+  const dueLabel = dueView === "today" ? "Due Today" : "Finished Tasks";
 
   const removeCompleted = (list: State) => {
     list.filter((item) => item.completed).forEach((item) => {
@@ -241,9 +332,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       <div className="menu-row">
         <div className="menu-row-label">
           <span>Due date</span>
-          {currentDueDate && (
+          {(currentDueDate || getRepeatDerivedDueDate(currentRepeat)) && (
             <span className="menu-row-value">
-              {formatDueDate(currentDueDate)}
+              {formatDueDate(currentDueDate ?? getRepeatDerivedDueDate(currentRepeat))}
             </span>
           )}
         </div>
@@ -294,6 +385,14 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                                 : [],
                           };
                 onRepeatChange(nextRepeat);
+                if (
+                  option === "custom" &&
+                  !currentDueDate &&
+                  nextRepeat &&
+                  nextRepeat.type === "custom"
+                ) {
+                  // Repeat-derived due date is displayed independently from manual dueDate.
+                }
                 if (option === "daily" || option === "none") {
                   onClose?.({ dueDate: currentDueDate, repeat: nextRepeat });
                 }
@@ -368,7 +467,18 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         <button
           className="check"
           aria-label="Toggle task"
-          onClick={() => dispatch(toggleTodo(item.id))}
+          onClick={() => {
+            if (item.completed) {
+              dispatch(toggleTodo(item.id));
+              return;
+            }
+            if (item.repeat) {
+              closeAllMenus();
+              setCompleteMenuId((prev) => (prev === item.id ? null : item.id));
+              return;
+            }
+            dispatch(toggleTodo(item.id));
+          }}
         >
           {item.completed ? <Icon name="check" size={14} /> : null}
         </button>
@@ -402,11 +512,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               </span>
             )}
 
-            {((options.showDue && item.dueDate) ||
+            {((options.showDue && getTaskDisplayDueDate(item)) ||
               (options.showRepeat && item.repeat)) && (
               <div className="meta inline">
-                {options.showDue && item.dueDate && (
-                  <span>{formatDueDate(item.dueDate)}</span>
+                {options.showDue && getTaskDisplayDueDate(item) && (
+                  <span>{formatDueDate(getTaskDisplayDueDate(item))}</span>
                 )}
                 {options.showRepeat && item.repeat && (
                   <span>{formatRepeat(item.repeat)}</span>
@@ -437,18 +547,26 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             {renderRepeatMenu(
               draftItemMeta?.repeat ?? item.repeat,
               (next) =>
-                setDraftItemMeta({
+                setDraftItemMeta((prev) => ({
                   id: item.id,
-                  dueDate: draftItemMeta?.dueDate ?? item.dueDate,
+                  dueDate:
+                    prev && prev.id === item.id
+                      ? prev.dueDate
+                      : item.dueDate,
                   repeat: next,
-                }),
-              draftItemMeta?.dueDate ?? item.dueDate,
+                })),
+              draftItemMeta?.id === item.id
+                ? draftItemMeta?.dueDate
+                : item.dueDate,
               (next) =>
-                setDraftItemMeta({
+                setDraftItemMeta((prev) => ({
                   id: item.id,
                   dueDate: next,
-                  repeat: draftItemMeta?.repeat ?? item.repeat,
-                }),
+                  repeat:
+                    prev && prev.id === item.id
+                      ? prev.repeat
+                      : item.repeat,
+                })),
               (next) => {
                 const current = itemById.get(item.id);
                 if (!current) {
@@ -482,6 +600,39 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           </div>
         )}
 
+        {completeMenuId === item.id && (
+          <div className={`complete-menu${openUp ? " up" : " down"}`}>
+            <button
+              onClick={() => {
+                if (!item.repeat) {
+                  setCompleteMenuId(null);
+                  return;
+                }
+                const next = nextRepeatDate(item.repeat, item.dueDate, today);
+                if (next) {
+                  dispatch(
+                    updateTodoMeta(item.id, {
+                      dueDate: getYmd(next),
+                      repeat: item.repeat,
+                    }),
+                  );
+                }
+                setCompleteMenuId(null);
+              }}
+            >
+              Completed This Instance
+            </button>
+            <button
+              onClick={() => {
+                dispatch(toggleTodo(item.id));
+                setCompleteMenuId(null);
+              }}
+            >
+              Complete Task
+            </button>
+          </div>
+        )}
+
         <button
           className="delete"
           aria-label="Delete task"
@@ -495,25 +646,198 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
 
   const listHasOpenItemMenu = (list: State) =>
     itemMenuId ? list.some((item) => item.id === itemMenuId) : false;
+  const listHasOpenCompleteMenu = (list: State) =>
+    completeMenuId ? list.some((item) => item.id === completeMenuId) : false;
+
+  const duePanelOpen =
+    dueListMenuOpen ||
+    dueViewMenuOpen ||
+    listHasOpenItemMenu(dueList) ||
+    listHasOpenCompleteMenu(dueList);
+  const remainingPanelOpen =
+    remainingMenuOpen ||
+    listHasOpenItemMenu(remaining) ||
+    listHasOpenCompleteMenu(remaining) ||
+    menuOpen;
+
+  useEffect(() => {
+    const recalc = () => {
+      if (
+        !rootRef.current ||
+        !duePanelRef.current ||
+        !dueListRef.current ||
+        !remainingPanelRef.current ||
+        !remainingListRef.current
+      ) {
+        return;
+      }
+
+      const viewportHeight = window.innerHeight;
+      const rootTop = rootRef.current.getBoundingClientRect().top;
+      if (anchorTopRef.current === null) {
+        anchorTopRef.current = rootTop;
+      }
+      const viewportTopPadding = Math.max(8, Math.round(viewportHeight * 0.015));
+      const viewportBottomPadding = Math.max(8, Math.round(viewportHeight * 0.015));
+
+      // Use a stable anchor top to avoid feedback loops while still respecting
+      // the actual vertical slot where this widget is placed.
+      const anchorTop = Math.max(anchorTopRef.current ?? rootTop, viewportTopPadding);
+      const availableHeight = Math.max(
+        0,
+        viewportHeight - anchorTop - viewportBottomPadding,
+      );
+
+      const dueFixed =
+        duePanelRef.current.offsetHeight - dueListRef.current.offsetHeight;
+      const remainingFixed =
+        remainingPanelRef.current.offsetHeight - remainingListRef.current.offsetHeight;
+      const rootStyles = getComputedStyle(rootRef.current);
+      const gapFromCss = Number.parseFloat(rootStyles.rowGap || rootStyles.gap || "0");
+      const panelGap = Number.isFinite(gapFromCss) && gapFromCss > 0
+        ? gapFromCss
+        : Math.max(8, Math.round(viewportHeight * 0.012));
+      const panelCount = 2;
+      const free = Math.max(
+        0,
+        availableHeight - dueFixed - remainingFixed - panelGap * (panelCount - 1),
+      );
+
+      let dueCap = 0;
+      let remainingCap = 0;
+      const dueNeed = dueOpen ? dueListRef.current.scrollHeight : 0;
+      const remainingNeed = remainingOpen ? remainingListRef.current.scrollHeight : 0;
+      const compactList = Math.max(44, Math.round(viewportHeight * 0.06));
+      const minOpenList = Math.max(72, Math.round(viewportHeight * 0.1));
+      // Harder caps to avoid oversized panels.
+      const dueMaxCap = Math.max(150, Math.round(viewportHeight * 0.26));
+      const remainingMaxCap = Math.max(240, Math.round(viewportHeight * 0.44));
+
+      if (dueOpen && remainingOpen && free > 0) {
+        const dueMin = dueNeed === 0 ? compactList : minOpenList;
+        const remainingMin = remainingNeed === 0 ? compactList : minOpenList;
+        const dueTarget = dueNeed === 0 ? compactList : Math.min(dueNeed, dueMaxCap);
+        const remainingTarget =
+          remainingNeed === 0 ? compactList : Math.min(remainingNeed, remainingMaxCap);
+
+        const equalShare = Math.floor(free / 2);
+        const bothCapped =
+          dueNeed > equalShare &&
+          remainingNeed > equalShare;
+
+        // If both lists are capped, force equal sized scroll regions.
+        if (bothCapped) {
+          dueCap = equalShare;
+          remainingCap = free - equalShare;
+        } else if (dueTarget + remainingTarget <= free) {
+          // Use full shared budget so any growth in one list immediately
+          // reallocates space from the other (no upward "free slack" growth).
+          dueCap = dueTarget;
+          remainingCap = free - dueCap;
+        } else {
+          // One list is effectively capped: let the other list grow by borrowing from it.
+          // Start by honoring Due Today target, then give Inbox the remainder.
+          dueCap = Math.min(dueTarget, Math.max(dueMin, free - remainingMin));
+          remainingCap = free - dueCap;
+
+          // If Inbox needs less than its allocation, return space to Due Today.
+          if (remainingCap > remainingTarget) {
+            const giveBack = Math.min(remainingCap - remainingTarget, dueTarget - dueCap);
+            dueCap += Math.max(0, giveBack);
+            remainingCap = free - dueCap;
+          }
+
+          // Keep both caps non-negative and above minima when possible.
+          if (remainingCap < remainingMin) {
+            remainingCap = remainingMin;
+            dueCap = Math.max(0, free - remainingCap);
+          }
+          if (dueCap < dueMin) {
+            dueCap = dueMin;
+            remainingCap = Math.max(0, free - dueCap);
+          }
+
+          // Final normalization for very small free-space cases.
+          dueCap = Math.min(Math.max(0, dueCap), free);
+          remainingCap = Math.max(0, free - dueCap);
+        }
+      } else if (dueOpen) {
+        dueCap = Math.min(dueNeed === 0 ? compactList : Math.min(dueNeed, dueMaxCap), free);
+      } else if (remainingOpen) {
+        remainingCap = Math.min(
+          remainingNeed === 0 ? compactList : Math.min(remainingNeed, remainingMaxCap),
+          free,
+        );
+      }
+
+      setListCaps((prev) =>
+        prev.due === dueCap && prev.remaining === remainingCap
+          ? prev
+          : { due: dueCap, remaining: remainingCap },
+      );
+    };
+
+    recalc();
+
+    const observer = new ResizeObserver(recalc);
+    [
+      rootRef.current,
+      duePanelRef.current,
+      dueListRef.current,
+      remainingPanelRef.current,
+      remainingListRef.current,
+    ].forEach((el) => {
+      if (el) observer.observe(el);
+    });
+
+    window.addEventListener("resize", recalc);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", recalc);
+    };
+  }, [
+    dueOpen,
+    remainingOpen,
+    dueView,
+    dueList.length,
+    remaining.length,
+    menuOpen,
+    duePanelOpen,
+    remainingPanelOpen,
+  ]);
 
   return (
-    <div className="TodoPlus">
-      <div className="panel">
+    <div className="TodoPlus" ref={rootRef}>
+      <div
+        className={`panel${duePanelOpen ? " panel-open" : ""}${!dueOpen ? " panel-collapsed" : ""}`}
+        ref={duePanelRef}
+      >
         <div className="header">
           <div className="section-title">
-            <button
-              className="section-toggle"
-              onClick={() => setDueOpen(!dueOpen)}
-              aria-label="Collapse list"
-            >
-              <span className="section-label">{dueLabel}</span>
-              <Icon name={dueOpen ? "chevron-down" : "chevron-right"} />
-            </button>
+            <div className="section-left">
+              <button
+                className="section-switch"
+                onClick={() => {
+                  closeAllMenus();
+                  setDueViewMenuOpen(true);
+                }}
+                aria-label="Choose list view"
+              >
+                <span className="section-label">{dueLabel}</span>
+              </button>
+              <button
+                className="section-collapse"
+                onClick={() => setDueOpen(!dueOpen)}
+                aria-label="Collapse list"
+              >
+                <Icon name={dueOpen ? "chevron-down" : "chevron-right"} />
+              </button>
+            </div>
             <button
               className="section-menu"
               onClick={() => {
                 closeAllMenus();
-                setDueMenuOpen(true);
+                setDueListMenuOpen(true);
               }}
               aria-label="List options"
             >
@@ -521,16 +845,39 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             </button>
           </div>
         </div>
+        {dueViewMenuOpen && (
+          <div className="due-view-menu">
+            <button
+              onClick={() => {
+                setDueView("today");
+                closeAllMenus();
+              }}
+            >
+              Due Today
+            </button>
+            <button
+              onClick={() => {
+                setDueView("finished");
+                closeAllMenus();
+              }}
+            >
+              Finished Tasks
+            </button>
+          </div>
+        )}
         <div
-          className={`list ${
-            dueMenuOpen || listHasOpenItemMenu(dueList) ? "menu-open" : ""
-          }`}
+          className={`list ${duePanelOpen ? "menu-open" : ""}`}
+          ref={dueListRef}
+          style={{
+            maxHeight: dueOpen ? `${listCaps.due}px` : "0px",
+            overflowY: dueOpen && !duePanelOpen ? "auto" : "visible",
+          }}
         >
-          {dueMenuOpen && (
+          {dueListMenuOpen && (
             <div className="list-menu">
               <button
                 onClick={() => {
-                  setDueMenuOpen(false);
+                  setDueListMenuOpen(false);
                   closeAllMenus();
                 }}
               >
@@ -554,7 +901,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   showRepeat: true,
                 })
               ) : (
-                <div className="empty">No tasks due today</div>
+                <div className="empty">
+                  {dueView === "today" ? "No tasks due today" : "No finished tasks"}
+                </div>
               )}
             </>
           )}
@@ -562,7 +911,10 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
 
       </div>
 
-      <div className="panel">
+      <div
+        className={`panel${remainingPanelOpen ? " panel-open" : ""}${!remainingOpen ? " panel-collapsed" : ""}`}
+        ref={remainingPanelRef}
+      >
         <div className="header">
           <div className="section-title">
             <button
@@ -586,11 +938,12 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           </div>
         </div>
         <div
-          className={`list ${
-            remainingMenuOpen || listHasOpenItemMenu(remaining)
-              ? "menu-open"
-              : ""
-          }`}
+          className={`list ${remainingPanelOpen ? "menu-open" : ""}`}
+          ref={remainingListRef}
+          style={{
+            maxHeight: remainingOpen ? `${listCaps.remaining}px` : "0px",
+            overflowY: remainingOpen && !remainingPanelOpen ? "auto" : "visible",
+          }}
         >
           {remainingMenuOpen && (
             <div className="list-menu">
@@ -615,7 +968,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           {remainingOpen && (
             <>
               {remaining.length ? (
-                renderItems(remaining, { showDue: true, showRepeat: true })
+                renderItems(remainingSorted, { showDue: true, showRepeat: true })
               ) : (
                 <div className="empty">No remaining tasks</div>
               )}
@@ -639,27 +992,25 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               }}
             />
 
-            {showMenuToggle && (
-              <button
-                className="due-today"
-                onClick={() => handleAddWithDueDate(getYmd(new Date()))}
-                aria-label="Set due today"
-              >
-                Due Today
-              </button>
-            )}
-            {showMenuToggle && (
-              <button
-                className={`menu-toggle${menuOpen ? " open" : ""}`}
-                onClick={() => {
-                  closeAllMenus();
-                  setMenuOpen(true);
-                }}
-                aria-label="Task options"
-              >
-                <Icon name="more-horizontal" />
-              </button>
-            )}
+            <button
+              className={`due-today${showMenuToggle ? "" : " hidden-control"}`}
+              onClick={() => handleAddWithDueDate(getYmd(new Date()))}
+              aria-label="Set due today"
+              tabIndex={showMenuToggle ? 0 : -1}
+            >
+              Due Today
+            </button>
+            <button
+              className={`menu-toggle${menuOpen ? " open" : ""}${showMenuToggle ? "" : " hidden-control"}`}
+              onClick={() => {
+                closeAllMenus();
+                setMenuOpen(true);
+              }}
+              aria-label="Task options"
+              tabIndex={showMenuToggle ? 0 : -1}
+            >
+              <Icon name="more-horizontal" />
+            </button>
           </div>
 
           {menuOpen &&
@@ -689,11 +1040,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               dueDate,
               (next) => setDueDate(next),
               (next) => {
-                if (next?.dueDate) {
-                  handleAddWithDueDate(next.dueDate);
-                } else {
-                  handleAdd();
+                const submitted = submitTaskWithMeta(next);
+                if (!submitted && next?.dueDate) {
+                  setDueDate(next.dueDate);
                 }
+                closeAllMenus();
               },
             )}
         </div>

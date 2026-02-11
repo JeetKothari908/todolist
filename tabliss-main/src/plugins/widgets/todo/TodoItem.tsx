@@ -1,4 +1,4 @@
-import React, { FC, useLayoutEffect, useRef } from "react";
+import React, { FC, useLayoutEffect, useRef, useState } from "react";
 
 import { useKeyPress } from "../../../hooks";
 import { Icon, RemoveIcon } from "../../../views/shared";
@@ -8,12 +8,15 @@ import "./TodoItem.sass";
 interface Props {
   item: State[number];
   onToggle(): void;
+  onCompleteInstance(): void;
+  onCompleteTask(): void;
   onUpdate(contents: string): void;
   onDelete(): void;
 }
 
-const TodoItem: FC<Props> = ({ item, onDelete, onUpdate, onToggle }) => {
+const TodoItem: FC<Props> = ({ item, onDelete, onUpdate, onToggle, onCompleteInstance, onCompleteTask }) => {
   const ref = useRef<HTMLSpanElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   useLayoutEffect(() => {
     if (ref.current) {
@@ -63,12 +66,49 @@ const TodoItem: FC<Props> = ({ item, onDelete, onUpdate, onToggle }) => {
         onBlur={(event) => onUpdate(event.currentTarget.innerText)}
       />
 
-      <a onMouseDown={onToggle} className="complete">
-        <Icon name={item.completed ? "check-circle" : "circle"} />
-      </a>
-      <a onMouseDown={onDelete} className="delete">
-        <RemoveIcon />
-      </a>
+      <div className="controls">
+        <a 
+          onMouseDown={(e) => {
+            e.preventDefault();
+            if (item.repeat && !item.completed) {
+              setShowMenu(true);
+            } else {
+              onToggle();
+              setShowMenu(false);
+            }
+          }} 
+          className="complete"
+        >
+          <Icon name={item.completed ? "check-circle" : "circle"} />
+        </a>
+        
+        {showMenu && item.repeat && !item.completed && (
+          <div className="repeatMenu">
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onCompleteInstance();
+                setShowMenu(false);
+              }}
+            >
+              Completed This Instance
+            </button>
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onCompleteTask();
+                setShowMenu(false);
+              }}
+            >
+              Complete Task
+            </button>
+          </div>
+        )}
+
+        <a onMouseDown={onDelete} className="delete">
+          <RemoveIcon />
+        </a>
+      </div>
     </div>
   );
 };

@@ -48,6 +48,16 @@ export function reducer(state: State, action: Action) {
           : todo,
       );
 
+    case "COMPLETE_INSTANCE":
+      return state.map((todo) =>
+        todo.id === action.data.id
+          ? { ...todo, completed: true }
+          : todo,
+      );
+
+    case "COMPLETE_TASK":
+      return state.filter((todo) => todo.id !== action.data.id);
+
     default:
       throw new Error("Unknown action");
   }

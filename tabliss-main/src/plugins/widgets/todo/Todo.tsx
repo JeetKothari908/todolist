@@ -2,7 +2,7 @@ import React, { FC } from "react";
 
 import { useKeyPress, useSavedReducer, useToggle } from "../../../hooks";
 import { DownIcon, Icon, UpIcon, ExpandIcon } from "../../../views/shared";
-import { addTodo, removeTodo, toggleTodo, updateTodo } from "./actions";
+import { addTodo, removeTodo, toggleTodo, updateTodo, completeInstance, completeTask } from "./actions";
 import { reducer, State } from "./reducer";
 import TodoList from "./TodoList";
 import { defaultData, Props } from "./types";
@@ -31,6 +31,8 @@ const Todo: FC<Props> = ({ data = defaultData, setData }) => {
       <TodoList
         items={items}
         onToggle={(...args) => dispatch(toggleTodo(...args))}
+        onCompleteInstance={(...args) => dispatch(completeInstance(...args))}
+        onCompleteTask={(...args) => dispatch(completeTask(...args))}
         onUpdate={(...args) => dispatch(updateTodo(...args))}
         onRemove={(...args) => dispatch(removeTodo(...args))}
         show={show}
