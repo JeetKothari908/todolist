@@ -361,14 +361,14 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       <div className="repeat">
         <span>Repeat</span>
         <div className="repeat-options">
-          {["none", "daily", "weekly", "custom"].map((option) => (
+          {(["none", "daily", "weekly", "custom"] as const).map((option) => (
             <button
               key={option}
               className={
                 (currentRepeat?.type ?? "none") === option ? "active" : ""
               }
               onClick={() => {
-                const nextRepeat =
+                const nextRepeat: Repeat | undefined =
                   option === "none"
                     ? undefined
                     : option === "daily"
@@ -433,7 +433,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   className={active ? "active" : ""}
                   onClick={() => {
                     if (isWeekly) {
-                      const nextRepeat = { type: "weekly", days: [index] };
+                      const nextRepeat: Repeat = { type: "weekly", days: [index] };
                       onRepeatChange(nextRepeat);
                       onClose?.({ dueDate: currentDueDate, repeat: nextRepeat });
                       return;
