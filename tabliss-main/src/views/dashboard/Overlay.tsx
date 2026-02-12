@@ -2,10 +2,7 @@ import React from "react";
 import { defineMessages } from "react-intl";
 import { ErrorContext } from "../../contexts/error";
 import { UiContext } from "../../contexts/ui";
-import { toggleFocus } from "../../db/action";
-import { db } from "../../db/state";
 import { useFormatMessages, useKeyPress } from "../../hooks";
-import { useValue } from "../../lib/db/react";
 import { Icon } from "../shared";
 import "./Overlay.sass";
 
@@ -14,11 +11,6 @@ const messages = defineMessages({
     id: "dashboard.settingsHint",
     defaultMessage: "Customise Tabliss",
     description: "Hover hint text for the settings icon",
-  },
-  focusHint: {
-    id: "dashboard.focusHint",
-    defaultMessage: "Toggle widgets",
-    description: "Hover hint text for the widgets toggle",
   },
   loadingHint: {
     id: "dashboard.loadingHint",
@@ -35,11 +27,9 @@ const messages = defineMessages({
 
 const Overlay: React.FC = () => {
   const translated = useFormatMessages(messages);
-  const focus = useValue(db, "focus");
   const { errors } = React.useContext(ErrorContext);
   const { pending, toggleErrors, toggleSettings } = React.useContext(UiContext);
 
-  useKeyPress(toggleFocus, ["w"]);
   useKeyPress(toggleSettings, ["s"]);
 
   return (
@@ -59,14 +49,6 @@ const Overlay: React.FC = () => {
           <Icon name="zap" />
         </span>
       ) : null}
-
-      <a
-        className={focus ? "" : "on-hover"}
-        onClick={toggleFocus}
-        title={`${translated.focusHint} (W)`}
-      >
-        <Icon name={focus ? "eye-off" : "eye"} />
-      </a>
     </div>
   );
 };
