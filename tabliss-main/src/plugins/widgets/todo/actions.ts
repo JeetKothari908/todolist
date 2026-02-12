@@ -3,16 +3,18 @@ import { Repeat } from "./reducer";
 
 export function addTodo(
   contents = "",
-  meta?: { dueDate?: string; repeat?: Repeat },
+  meta?: { dueDate?: string; repeat?: Repeat; parentId?: string; finished?: boolean },
 ) {
   return {
     type: "ADD_TODO",
     data: {
       contents,
       id: generateId(),
-      completed: false,
+      completed: !!meta?.finished,
+      finished: meta?.finished,
       dueDate: meta?.dueDate,
       repeat: meta?.repeat,
+      parentId: meta?.parentId,
     },
   } as const;
 }
@@ -40,7 +42,7 @@ export function updateTodo(id: string, contents: string) {
 
 export function updateTodoMeta(
   id: string,
-  meta: { dueDate?: string; repeat?: Repeat },
+  meta: { dueDate?: string; repeat?: Repeat; pendingDates?: string[] },
 ) {
   return {
     type: "UPDATE_TODO_META",
@@ -62,6 +64,20 @@ export function completeTask(id: string) {
   } as const;
 }
 
+export function finishTodo(id: string) {
+  return {
+    type: "FINISH_TODO",
+    data: { id },
+  } as const;
+}
+
+export function unfinishTodo(id: string) {
+  return {
+    type: "UNFINISH_TODO",
+    data: { id },
+  } as const;
+}
+
 export type Action =
   | ReturnType<typeof addTodo>
   | ReturnType<typeof removeTodo>
@@ -69,4 +85,6 @@ export type Action =
   | ReturnType<typeof updateTodo>
   | ReturnType<typeof updateTodoMeta>
   | ReturnType<typeof completeInstance>
-  | ReturnType<typeof completeTask>;
+  | ReturnType<typeof completeTask>
+  | ReturnType<typeof finishTodo>
+  | ReturnType<typeof unfinishTodo>;

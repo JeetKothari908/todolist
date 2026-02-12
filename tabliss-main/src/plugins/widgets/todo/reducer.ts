@@ -4,8 +4,11 @@ type Todo = {
   id: string;
   contents: string;
   completed: boolean;
+  finished?: boolean;
   dueDate?: string;
   repeat?: Repeat;
+  parentId?: string;
+  pendingDates?: string[];
 };
 
 export type State = Todo[];
@@ -44,6 +47,7 @@ export function reducer(state: State, action: Action) {
               ...todo,
               dueDate: action.data.dueDate,
               repeat: action.data.repeat,
+              pendingDates: action.data.pendingDates,
             }
           : todo,
       );
@@ -57,6 +61,20 @@ export function reducer(state: State, action: Action) {
 
     case "COMPLETE_TASK":
       return state.filter((todo) => todo.id !== action.data.id);
+
+    case "FINISH_TODO":
+      return state.map((todo) =>
+        todo.id === action.data.id
+          ? { ...todo, completed: true, finished: true }
+          : todo,
+      );
+
+    case "UNFINISH_TODO":
+      return state.map((todo) =>
+        todo.id === action.data.id
+          ? { ...todo, completed: false, finished: false }
+          : todo,
+      );
 
     default:
       throw new Error("Unknown action");
