@@ -71,7 +71,6 @@ const firstRepeatDate = (repeat: Repeat, today: Date): Date | null => {
 
 const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const anchorTopRef = useRef<number | null>(null);
   const duePanelRef = useRef<HTMLDivElement | null>(null);
   const dueListRef = useRef<HTMLDivElement | null>(null);
   const remainingPanelRef = useRef<HTMLDivElement | null>(null);
@@ -687,21 +686,12 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       }
 
       const viewportHeight = window.innerHeight;
-      const rootRect = rootRef.current.getBoundingClientRect();
-      if (anchorTopRef.current === null) {
-        anchorTopRef.current = rootRect.top;
-      }
-      const viewportTopPadding = Math.max(2, Math.round(viewportHeight * 0.005));
-      const viewportBottomPadding = Math.max(8, Math.round(viewportHeight * 0.015));
+      const verticalPadding = Math.max(40, Math.round(viewportHeight * 0.12));
 
-      // Use a stable anchor top and the widget's actual current bottom edge
-      // so the stack never over-allocates beyond its on-screen slot.
-      const anchorTop = Math.max(anchorTopRef.current ?? rootRect.top, viewportTopPadding);
-      const visibleBottom = Math.min(viewportHeight - viewportBottomPadding, rootRect.bottom - viewportBottomPadding);
-      const availableHeight = Math.max(
-        0,
-        visibleBottom - anchorTop,
-      );
+      // The widget is vertically centered via CSS transform, so the
+      // total widget height must not exceed the viewport.  Base
+      // available height on the viewport minus padding.
+      const availableHeight = Math.max(0, viewportHeight - verticalPadding);
 
       const dueFixed =
         duePanelRef.current.offsetHeight - dueListRef.current.offsetHeight;
@@ -718,20 +708,21 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         availableHeight - dueFixed - remainingFixed - panelGap * (panelCount - 1),
       );
 
-      // ── Dynamic height allocation ──────────────────────────────
-      // Active list (last mutated) is capped first; inactive list
-      // may expand up to an equal share before it too is capped.
-      const result = calculateCappedHeights(
-        free,
-        [
-          { scrollHeight: dueListRef.current.scrollHeight, isOpen: dueOpen },
-          { scrollHeight: remainingListRef.current.scrollHeight, isOpen: remainingOpen },
-        ],
-        activeListRef.current,
-      );
+      // ── Height allocation ─────────────────────────────────────
+      // Due Today gets what it needs (up to half the free space).
+      // Inbox always gets whatever remains, regardless of its
+      // current content size, so it doesn't shrink on reload.
+      const maxDueShare = Math.floor(free / 2);
+      const dueNeed = dueOpen ? dueListRef.current.scrollHeight : 0;
+      const dueCap = Math.min(dueNeed, maxDueShare);
+      const remainingCap = Math.max(0, free - dueCap);
 
-      const [dueCap, remainingCap] = result.heights;
-      const newCappedLists = { due: result.capped[0], remaining: result.capped[1] };
+      const newCappedLists = {
+        due: dueNeed > dueCap,
+        remaining: remainingOpen
+          ? remainingListRef.current.scrollHeight > remainingCap
+          : false,
+      };
 
       setListCaps((prev) =>
         prev.due === dueCap && prev.remaining === remainingCap
@@ -754,10 +745,13 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       if (el) observer.observe(el);
     });
 
-    window.addEventListener("resize", recalc);
+    const handleResize = () => {
+      recalc();
+    };
+    window.addEventListener("resize", handleResize);
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", recalc);
+      window.removeEventListener("resize", handleResize);
     };
   }, [
     dueOpen,
