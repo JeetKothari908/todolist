@@ -11,6 +11,7 @@ import {
 } from "../todo/actions";
 import { reducer, Repeat, State } from "../todo/reducer";
 import { defaultData, Props } from "../todo/types";
+import { calculateCappedHeights } from "../../../hooks/calculateCappedHeights";
 import "./TodoPlus.sass";
 
 const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -98,6 +99,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [dueOpen, setDueOpen] = useState(true);
   const [remainingOpen, setRemainingOpen] = useState(true);
   const [listCaps, setListCaps] = useState({ due: 220, remaining: 220 });
+  const [cappedLists, setCappedLists] = useState({ due: false, remaining: false });
+  const activeListRef = useRef(1); // 0 = due panel, 1 = remaining/inbox panel
 
   const repeatEqual = (a?: Repeat, b?: Repeat) => {
     if (!a && !b) return true;
@@ -189,6 +192,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   function submitCurrentTask() {
     const trimmed = input.trim();
     if (!trimmed) return;
+    activeListRef.current = dueDate === todayYmd ? 0 : 1;
     dispatch(addTodo(trimmed, { dueDate, repeat }));
     setInput("");
     setDueDate(undefined);
@@ -199,9 +203,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const submitTaskWithMeta = (meta?: { dueDate?: string; repeat?: Repeat }) => {
     const trimmed = input.trim();
     if (!trimmed) return false;
+    const finalDueDate = meta?.dueDate ?? dueDate;
+    activeListRef.current = finalDueDate === todayYmd ? 0 : 1;
     dispatch(
       addTodo(trimmed, {
-        dueDate: meta?.dueDate ?? dueDate,
+        dueDate: finalDueDate,
         repeat: meta?.repeat ?? repeat,
       }),
     );
@@ -452,6 +458,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
 
   const renderItems = (
     list: State,
+    listIdx: number,
     options: { showDue: boolean; showRepeat: boolean } = {
       showDue: true,
       showRepeat: true,
@@ -468,6 +475,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           className="check"
           aria-label="Toggle task"
           onClick={() => {
+            activeListRef.current = listIdx;
             if (item.completed) {
               dispatch(toggleTodo(item.id));
               return;
@@ -586,6 +594,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   current.dueDate !== nextDueDate ||
                   !repeatEqual(current.repeat, nextRepeat)
                 ) {
+                  activeListRef.current = listIdx;
                   dispatch(
                     updateTodoMeta(item.id, {
                       dueDate: nextDueDate,
@@ -604,6 +613,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           <div className={`complete-menu${openUp ? " up" : " down"}`}>
             <button
               onClick={() => {
+                activeListRef.current = listIdx;
                 if (!item.repeat) {
                   setCompleteMenuId(null);
                   return;
@@ -624,6 +634,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             </button>
             <button
               onClick={() => {
+                activeListRef.current = listIdx;
                 dispatch(toggleTodo(item.id));
                 setCompleteMenuId(null);
               }}
@@ -636,7 +647,10 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         <button
           className="delete"
           aria-label="Delete task"
-          onClick={() => dispatch(removeTodo(item.id))}
+          onClick={() => {
+            activeListRef.current = listIdx;
+            dispatch(removeTodo(item.id));
+          }}
         >
           <RemoveIcon />
         </button>
@@ -673,19 +687,20 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       }
 
       const viewportHeight = window.innerHeight;
-      const rootTop = rootRef.current.getBoundingClientRect().top;
+      const rootRect = rootRef.current.getBoundingClientRect();
       if (anchorTopRef.current === null) {
-        anchorTopRef.current = rootTop;
+        anchorTopRef.current = rootRect.top;
       }
-      const viewportTopPadding = Math.max(8, Math.round(viewportHeight * 0.015));
+      const viewportTopPadding = Math.max(2, Math.round(viewportHeight * 0.005));
       const viewportBottomPadding = Math.max(8, Math.round(viewportHeight * 0.015));
 
-      // Use a stable anchor top to avoid feedback loops while still respecting
-      // the actual vertical slot where this widget is placed.
-      const anchorTop = Math.max(anchorTopRef.current ?? rootTop, viewportTopPadding);
+      // Use a stable anchor top and the widget's actual current bottom edge
+      // so the stack never over-allocates beyond its on-screen slot.
+      const anchorTop = Math.max(anchorTopRef.current ?? rootRect.top, viewportTopPadding);
+      const visibleBottom = Math.min(viewportHeight - viewportBottomPadding, rootRect.bottom - viewportBottomPadding);
       const availableHeight = Math.max(
         0,
-        viewportHeight - anchorTop - viewportBottomPadding,
+        visibleBottom - anchorTop,
       );
 
       const dueFixed =
@@ -703,78 +718,27 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         availableHeight - dueFixed - remainingFixed - panelGap * (panelCount - 1),
       );
 
-      let dueCap = 0;
-      let remainingCap = 0;
-      const dueNeed = dueOpen ? dueListRef.current.scrollHeight : 0;
-      const remainingNeed = remainingOpen ? remainingListRef.current.scrollHeight : 0;
-      const compactList = Math.max(44, Math.round(viewportHeight * 0.06));
-      const minOpenList = Math.max(72, Math.round(viewportHeight * 0.1));
-      // Harder caps to avoid oversized panels.
-      const dueMaxCap = Math.max(150, Math.round(viewportHeight * 0.26));
-      const remainingMaxCap = Math.max(240, Math.round(viewportHeight * 0.44));
+      // ── Dynamic height allocation ──────────────────────────────
+      // Active list (last mutated) is capped first; inactive list
+      // may expand up to an equal share before it too is capped.
+      const result = calculateCappedHeights(
+        free,
+        [
+          { scrollHeight: dueListRef.current.scrollHeight, isOpen: dueOpen },
+          { scrollHeight: remainingListRef.current.scrollHeight, isOpen: remainingOpen },
+        ],
+        activeListRef.current,
+      );
 
-      if (dueOpen && remainingOpen && free > 0) {
-        const dueMin = dueNeed === 0 ? compactList : minOpenList;
-        const remainingMin = remainingNeed === 0 ? compactList : minOpenList;
-        const dueTarget = dueNeed === 0 ? compactList : Math.min(dueNeed, dueMaxCap);
-        const remainingTarget =
-          remainingNeed === 0 ? compactList : Math.min(remainingNeed, remainingMaxCap);
-
-        const equalShare = Math.floor(free / 2);
-        const bothCapped =
-          dueNeed > equalShare &&
-          remainingNeed > equalShare;
-
-        // If both lists are capped, force equal sized scroll regions.
-        if (bothCapped) {
-          dueCap = equalShare;
-          remainingCap = free - equalShare;
-        } else if (dueTarget + remainingTarget <= free) {
-          // Use full shared budget so any growth in one list immediately
-          // reallocates space from the other (no upward "free slack" growth).
-          dueCap = dueTarget;
-          remainingCap = free - dueCap;
-        } else {
-          // One list is effectively capped: let the other list grow by borrowing from it.
-          // Start by honoring Due Today target, then give Inbox the remainder.
-          dueCap = Math.min(dueTarget, Math.max(dueMin, free - remainingMin));
-          remainingCap = free - dueCap;
-
-          // If Inbox needs less than its allocation, return space to Due Today.
-          if (remainingCap > remainingTarget) {
-            const giveBack = Math.min(remainingCap - remainingTarget, dueTarget - dueCap);
-            dueCap += Math.max(0, giveBack);
-            remainingCap = free - dueCap;
-          }
-
-          // Keep both caps non-negative and above minima when possible.
-          if (remainingCap < remainingMin) {
-            remainingCap = remainingMin;
-            dueCap = Math.max(0, free - remainingCap);
-          }
-          if (dueCap < dueMin) {
-            dueCap = dueMin;
-            remainingCap = Math.max(0, free - dueCap);
-          }
-
-          // Final normalization for very small free-space cases.
-          dueCap = Math.min(Math.max(0, dueCap), free);
-          remainingCap = Math.max(0, free - dueCap);
-        }
-      } else if (dueOpen) {
-        dueCap = Math.min(dueNeed === 0 ? compactList : Math.min(dueNeed, dueMaxCap), free);
-      } else if (remainingOpen) {
-        remainingCap = Math.min(
-          remainingNeed === 0 ? compactList : Math.min(remainingNeed, remainingMaxCap),
-          free,
-        );
-      }
+      const [dueCap, remainingCap] = result.heights;
+      const newCappedLists = { due: result.capped[0], remaining: result.capped[1] };
 
       setListCaps((prev) =>
         prev.due === dueCap && prev.remaining === remainingCap
           ? prev
           : { due: dueCap, remaining: remainingCap },
       );
+      setCappedLists(newCappedLists);
     };
 
     recalc();
@@ -885,6 +849,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               </button>
               <button
                 onClick={() => {
+                  activeListRef.current = 0;
                   removeCompleted(dueList);
                   closeAllMenus();
                 }}
@@ -896,7 +861,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           {dueOpen && (
             <>
               {dueList.length ? (
-                renderItems(dueList, {
+                renderItems(dueList, 0, {
                   showDue: true,
                   showRepeat: true,
                 })
@@ -957,6 +922,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               </button>
               <button
                 onClick={() => {
+                  activeListRef.current = 1;
                   removeCompleted(remaining);
                   closeAllMenus();
                 }}
@@ -968,7 +934,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           {remainingOpen && (
             <>
               {remaining.length ? (
-                renderItems(remainingSorted, { showDue: true, showRepeat: true })
+                renderItems(remainingSorted, 1, { showDue: true, showRepeat: true })
               ) : (
                 <div className="empty">No remaining tasks</div>
               )}

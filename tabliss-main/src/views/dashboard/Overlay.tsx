@@ -4,7 +4,7 @@ import { ErrorContext } from "../../contexts/error";
 import { UiContext } from "../../contexts/ui";
 import { toggleFocus } from "../../db/action";
 import { db } from "../../db/state";
-import { useFormatMessages, useFullscreen, useKeyPress } from "../../hooks";
+import { useFormatMessages, useKeyPress } from "../../hooks";
 import { useValue } from "../../lib/db/react";
 import { Icon } from "../shared";
 import "./Overlay.sass";
@@ -19,11 +19,6 @@ const messages = defineMessages({
     id: "dashboard.focusHint",
     defaultMessage: "Toggle widgets",
     description: "Hover hint text for the widgets toggle",
-  },
-  fullscreenHint: {
-    id: "dashboard.fullscreenHint",
-    defaultMessage: "Toggle fullscreen",
-    description: "Hover hint text for the fullscreen toggle",
   },
   loadingHint: {
     id: "dashboard.loadingHint",
@@ -46,10 +41,6 @@ const Overlay: React.FC = () => {
 
   useKeyPress(toggleFocus, ["w"]);
   useKeyPress(toggleSettings, ["s"]);
-
-  // Hooks inside a condition? Works because the condition always resolves the same
-  const [isFullscreen, handleToggleFullscreen] = useFullscreen();
-  if (handleToggleFullscreen) useKeyPress(handleToggleFullscreen, ["f"]);
 
   return (
     <div className="Overlay">
@@ -76,16 +67,6 @@ const Overlay: React.FC = () => {
       >
         <Icon name={focus ? "eye-off" : "eye"} />
       </a>
-
-      {handleToggleFullscreen ? (
-        <a
-          className="on-hover"
-          onClick={handleToggleFullscreen}
-          title={`${translated.fullscreenHint} (F)`}
-        >
-          <Icon name={isFullscreen ? "minimize-2" : "maximize-2"} />
-        </a>
-      ) : null}
     </div>
   );
 };
