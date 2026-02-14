@@ -2,6 +2,7 @@ import React, { FC, useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 
 import { useSavedReducer } from "../../../hooks";
+import { UiContext } from "../../../contexts/ui";
 import { Icon, RemoveIcon } from "../../../views/shared";
 import {
   addTodo,
@@ -73,6 +74,7 @@ const firstRepeatDate = (repeat: Repeat, today: Date): Date | null => {
 };
 
 const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
+  const { toggleSettings } = React.useContext(UiContext);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const duePanelRef = useRef<HTMLDivElement | null>(null);
   const dueListRef = useRef<HTMLDivElement | null>(null);
@@ -897,8 +899,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           <div className="list-menu">
             <button
               onClick={() => {
-                setDueListMenuOpen(false);
                 closeAllMenus();
+                toggleSettings();
               }}
             >
               Settings
@@ -910,7 +912,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 closeAllMenus();
               }}
             >
-              Delete completed items
+              Remove Finished Items
             </button>
           </div>
         )}
@@ -970,8 +972,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           <div className="list-menu">
             <button
               onClick={() => {
-                setRemainingMenuOpen(false);
                 closeAllMenus();
+                toggleSettings();
               }}
             >
               Settings
@@ -983,7 +985,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 closeAllMenus();
               }}
             >
-              Delete completed items
+              Remove Finished Items
             </button>
           </div>
         )}
