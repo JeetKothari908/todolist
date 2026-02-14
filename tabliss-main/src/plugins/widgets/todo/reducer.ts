@@ -6,6 +6,7 @@ type Todo = {
   completed: boolean;
   dueDate?: string;
   repeat?: Repeat;
+  parentId?: string;
 };
 
 export type State = Todo[];
@@ -57,6 +58,45 @@ export function reducer(state: State, action: Action) {
 
     case "COMPLETE_TASK":
       return state.filter((todo) => todo.id !== action.data.id);
+
+    case "COMPLETE_REPEAT_INSTANCE": {
+      const parent = state.find((todo) => todo.id === action.data.parentId);
+      if (!parent) return state;
+      const instance = {
+        id: action.data.instanceId,
+        contents: parent.contents,
+        completed: true,
+        dueDate: action.data.instanceDueDate,
+        repeat: parent.repeat,
+        parentId: action.data.parentId,
+      };
+      return state
+        .map((todo) =>
+          todo.id === action.data.parentId
+            ? { ...todo, dueDate: action.data.nextDueDate }
+            : todo,
+        )
+        .concat(instance);
+    }
+
+    case "UNCOMPLETE_REPEAT_INSTANCE": {
+      // Remove the completed instance
+      const filtered = state.filter(
+        (todo) => todo.id !== action.data.instanceId,
+      );
+      // Only roll back parent's dueDate if the instance's date is earlier
+      return filtered.map((todo) => {
+        if (todo.id !== action.data.parentId) return todo;
+        const instanceDate = action.data.instanceDueDate;
+        if (
+          instanceDate &&
+          (!todo.dueDate || instanceDate < todo.dueDate)
+        ) {
+          return { ...todo, dueDate: instanceDate };
+        }
+        return todo;
+      });
+    }
 
     default:
       throw new Error("Unknown action");

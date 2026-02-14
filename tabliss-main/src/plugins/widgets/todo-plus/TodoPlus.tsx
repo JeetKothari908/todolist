@@ -9,6 +9,8 @@ import {
   toggleTodo,
   updateTodo,
   updateTodoMeta,
+  completeRepeatInstance,
+  uncompleteRepeatInstance,
 } from "../todo/actions";
 import { reducer, Repeat, State } from "../todo/reducer";
 import { defaultData, Props } from "../todo/types";
@@ -495,7 +497,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           onClick={(e) => {
             activeListRef.current = listIdx;
             if (item.completed) {
-              dispatch(toggleTodo(item.id));
+              if (item.parentId) {
+                dispatch(uncompleteRepeatInstance(item.id, item.parentId, item.dueDate));
+              } else {
+                dispatch(toggleTodo(item.id));
+              }
               return;
             }
             if (item.repeat) {
@@ -654,17 +660,31 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   setCompleteMenuId(null);
                   return;
                 }
-                const next = nextRepeatDate(
+                const currentDueDate = item.dueDate ?? getRepeatDerivedDueDate(item.repeat);
+                // Collect dates that already have completed sibling instances
+                const siblingDates = new Set(
+                  items
+                    .filter((i) => i.parentId === item.id && i.completed && i.dueDate)
+                    .map((i) => i.dueDate!),
+                );
+                // Advance past dates that already have a completed instance
+                let next = nextRepeatDate(
                   item.repeat,
-                  item.dueDate ?? getRepeatDerivedDueDate(item.repeat),
+                  currentDueDate,
                   today,
                 );
+                let safety = 0;
+                while (next && siblingDates.has(getYmd(next)) && safety < 365) {
+                  next = nextRepeatDate(item.repeat, getYmd(next), today);
+                  safety += 1;
+                }
                 if (next) {
                   dispatch(
-                    updateTodoMeta(item.id, {
-                      dueDate: getYmd(next),
-                      repeat: item.repeat,
-                    }),
+                    completeRepeatInstance(
+                      item.id,
+                      currentDueDate,
+                      getYmd(next),
+                    ),
                   );
                 }
                 setCompleteMenuId(null);

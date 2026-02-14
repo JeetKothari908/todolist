@@ -62,6 +62,33 @@ export function completeTask(id: string) {
   } as const;
 }
 
+export function completeRepeatInstance(
+  parentId: string,
+  instanceDueDate: string | undefined,
+  nextDueDate: string,
+) {
+  return {
+    type: "COMPLETE_REPEAT_INSTANCE",
+    data: {
+      parentId,
+      instanceId: generateId(),
+      instanceDueDate,
+      nextDueDate,
+    },
+  } as const;
+}
+
+export function uncompleteRepeatInstance(
+  instanceId: string,
+  parentId: string,
+  instanceDueDate?: string,
+) {
+  return {
+    type: "UNCOMPLETE_REPEAT_INSTANCE",
+    data: { instanceId, parentId, instanceDueDate },
+  } as const;
+}
+
 export type Action =
   | ReturnType<typeof addTodo>
   | ReturnType<typeof removeTodo>
@@ -69,4 +96,6 @@ export type Action =
   | ReturnType<typeof updateTodo>
   | ReturnType<typeof updateTodoMeta>
   | ReturnType<typeof completeInstance>
-  | ReturnType<typeof completeTask>;
+  | ReturnType<typeof completeTask>
+  | ReturnType<typeof completeRepeatInstance>
+  | ReturnType<typeof uncompleteRepeatInstance>;
