@@ -296,8 +296,16 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     return null;
   };
 
+  const isOverdue = (item: State[number]) => {
+    if (!item.dueDate || item.completed) return false;
+    return item.dueDate < todayYmd;
+  };
+
   const isDueToday = (item: State[number]) => {
     if (item.dueDate && item.dueDate === todayYmd) return true;
+
+    // Overdue items (due date before today) should appear in the due today list
+    if (item.dueDate && item.dueDate < todayYmd) return true;
 
     const repeatDays = getRepeatDays(item);
     if (!repeatDays) return false;
@@ -490,7 +498,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       return (
         <div
           key={item.id}
-          className={`item${item.completed ? " completed" : ""}`}
+          className={`item${item.completed ? " completed" : ""}${isOverdue(item) ? " overdue" : ""}`}
         >
         <button
           className="check"
