@@ -321,9 +321,13 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
 
   const activeItems = items.filter((item) => !item.dismissed);
   const finished = items.filter((item) => item.dismissed);
-  const dueToday = activeItems.filter((item) => isDueToday(item));
+  const dueToday = [...activeItems.filter((item) => isDueToday(item))].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    return 0;
+  });
   const remaining = activeItems.filter((item) => !isDueToday(item));
   const remainingSorted = [...remaining].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
     const aDue = getTaskDisplayDueDate(a);
     const bDue = getTaskDisplayDueDate(b);
     if (!aDue && !bDue) return 0;
