@@ -113,6 +113,12 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     return true;
   };
 
+  const normalizeRepeat = (repeat?: Repeat): Repeat | undefined => {
+    if (!repeat) return undefined;
+    if (repeat.type === "custom" && (!repeat.days || repeat.days.length === 0)) return undefined;
+    return repeat;
+  };
+
   const commitDraftItemMeta = () => {
     if (!draftItemMeta) return;
     const current = itemById.get(draftItemMeta.id);
@@ -120,14 +126,15 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       setDraftItemMeta(null);
       return;
     }
+    const finalRepeat = normalizeRepeat(draftItemMeta.repeat);
     if (
       current.dueDate !== draftItemMeta.dueDate ||
-      !repeatEqual(current.repeat, draftItemMeta.repeat)
+      !repeatEqual(current.repeat, finalRepeat)
     ) {
       dispatch(
         updateTodoMeta(draftItemMeta.id, {
           dueDate: draftItemMeta.dueDate,
-          repeat: draftItemMeta.repeat,
+          repeat: finalRepeat,
         }),
       );
     }
@@ -147,6 +154,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     setItemMenuId(null);
   };
 
+  const closeAllMenusRef = useRef(closeAllMenus);
+  closeAllMenusRef.current = closeAllMenus;
+
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -162,7 +172,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       ) {
         return;
       }
-      closeAllMenus();
+      closeAllMenusRef.current();
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -272,8 +282,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     if (item.repeat.type === "daily") return [0, 1, 2, 3, 4, 5, 6];
     if (item.repeat.type === "custom") return item.repeat.days ?? [];
     if (item.repeat.type === "weekly") {
+      if (item.repeat.days && item.repeat.days.length) return item.repeat.days;
       const parsed = parseDate(item.dueDate);
-      return [parsed ? parsed.getDay() : todayDay];
+      return parsed ? [parsed.getDay()] : [];
     }
     return null;
   };
@@ -465,6 +476,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   ) =>
     list.map((item, index) => {
       const openUp = index >= list.length - 1;
+      const isDrafting = draftItemMeta?.id === item.id;
+      const displayRepeat = isDrafting ? normalizeRepeat(draftItemMeta.repeat) : item.repeat;
+      const displayDueDate = isDrafting
+        ? (draftItemMeta.dueDate ?? (displayRepeat ? getRepeatDerivedDueDate(displayRepeat) : undefined))
+        : getTaskDisplayDueDate(item);
       return (
         <div
           key={item.id}
@@ -519,14 +535,14 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               </span>
             )}
 
-            {((options.showDue && getTaskDisplayDueDate(item)) ||
-              (options.showRepeat && item.repeat)) && (
+            {((options.showDue && displayDueDate) ||
+              (options.showRepeat && displayRepeat)) && (
               <div className="meta inline">
-                {options.showDue && getTaskDisplayDueDate(item) && (
-                  <span>{formatDueDate(getTaskDisplayDueDate(item))}</span>
+                {options.showDue && displayDueDate && (
+                  <span>{formatDueDate(displayDueDate)}</span>
                 )}
-                {options.showRepeat && item.repeat && (
-                  <span>{formatRepeat(item.repeat)}</span>
+                {options.showRepeat && displayRepeat && (
+                  <span>{formatRepeat(displayRepeat)}</span>
                 )}
               </div>
             )}
@@ -585,10 +601,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   next?.dueDate ??
                   draftItemMeta?.dueDate ??
                   item.dueDate;
-                const nextRepeat =
+                const nextRepeat = normalizeRepeat(
                   next?.repeat ??
                   draftItemMeta?.repeat ??
-                  item.repeat;
+                  item.repeat,
+                );
                 if (
                   current.dueDate !== nextDueDate ||
                   !repeatEqual(current.repeat, nextRepeat)
@@ -617,7 +634,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   setCompleteMenuId(null);
                   return;
                 }
-                const next = nextRepeatDate(item.repeat, item.dueDate, today);
+                const next = nextRepeatDate(
+                  item.repeat,
+                  item.dueDate ?? getRepeatDerivedDueDate(item.repeat),
+                  today,
+                );
                 if (next) {
                   dispatch(
                     updateTodoMeta(item.id, {
@@ -662,16 +683,19 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const listHasOpenCompleteMenu = (list: State) =>
     completeMenuId ? list.some((item) => item.id === completeMenuId) : false;
 
-  const duePanelOpen =
-    dueListMenuOpen ||
-    dueViewMenuOpen ||
+  // Menus rendered INSIDE the .list that need overflow:visible to avoid clipping
+  const dueListNeedsOverflow =
     listHasOpenItemMenu(dueList) ||
     listHasOpenCompleteMenu(dueList);
-  const remainingPanelOpen =
-    remainingMenuOpen ||
+  const remainingListNeedsOverflow =
     listHasOpenItemMenu(remaining) ||
-    listHasOpenCompleteMenu(remaining) ||
-    menuOpen;
+    listHasOpenCompleteMenu(remaining);
+
+  // Panel-level elevation (z-index) — includes menus rendered outside the list
+  const duePanelOpen =
+    dueViewMenuOpen || dueListMenuOpen || dueListNeedsOverflow;
+  const remainingPanelOpen =
+    menuOpen || remainingMenuOpen || remainingListNeedsOverflow;
 
   useEffect(() => {
     const recalc = () => {
@@ -709,13 +733,21 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       );
 
       // ── Height allocation ─────────────────────────────────────
-      // Due Today gets what it needs (up to half the free space).
-      // Inbox always gets whatever remains, regardless of its
-      // current content size, so it doesn't shrink on reload.
-      const maxDueShare = Math.floor(free / 2);
+      // First pass: Due gets what it needs up to half the free space.
       const dueNeed = dueOpen ? dueListRef.current.scrollHeight : 0;
-      const dueCap = Math.min(dueNeed, maxDueShare);
-      const remainingCap = Math.max(0, free - dueCap);
+      const remainingNeed = remainingOpen ? remainingListRef.current.scrollHeight : 0;
+      const maxDueShare = Math.floor(free / 2);
+      let dueCap = Math.min(dueNeed, maxDueShare);
+      let remainingCap = Math.max(0, free - dueCap);
+
+      // Second pass: if Inbox doesn't need all its space, give the
+      // surplus back to the due panel so it can grow when switching
+      // between views with different task counts.
+      if (remainingNeed < remainingCap) {
+        const surplus = remainingCap - remainingNeed;
+        dueCap = Math.min(dueNeed, dueCap + surplus);
+        remainingCap = Math.max(0, free - dueCap);
+      }
 
       const newCappedLists = {
         due: dueNeed > dueCap,
@@ -823,35 +855,35 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             </button>
           </div>
         )}
+        {dueListMenuOpen && (
+          <div className="list-menu">
+            <button
+              onClick={() => {
+                setDueListMenuOpen(false);
+                closeAllMenus();
+              }}
+            >
+              Settings
+            </button>
+            <button
+              onClick={() => {
+                activeListRef.current = 0;
+                removeCompleted(dueList);
+                closeAllMenus();
+              }}
+            >
+              Delete completed items
+            </button>
+          </div>
+        )}
         <div
-          className={`list ${duePanelOpen ? "menu-open" : ""}`}
+          className={`list ${dueListNeedsOverflow ? "menu-open" : ""}`}
           ref={dueListRef}
           style={{
             maxHeight: dueOpen ? `${listCaps.due}px` : "0px",
-            overflowY: dueOpen && !duePanelOpen ? "auto" : "visible",
+            overflowY: dueOpen && !dueListNeedsOverflow ? "auto" : "visible",
           }}
         >
-          {dueListMenuOpen && (
-            <div className="list-menu">
-              <button
-                onClick={() => {
-                  setDueListMenuOpen(false);
-                  closeAllMenus();
-                }}
-              >
-                Settings
-              </button>
-              <button
-                onClick={() => {
-                  activeListRef.current = 0;
-                  removeCompleted(dueList);
-                  closeAllMenus();
-                }}
-              >
-                Delete completed items
-              </button>
-            </div>
-          )}
           {dueOpen && (
             <>
               {dueList.length ? (
@@ -896,35 +928,35 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             </button>
           </div>
         </div>
+        {remainingMenuOpen && (
+          <div className="list-menu">
+            <button
+              onClick={() => {
+                setRemainingMenuOpen(false);
+                closeAllMenus();
+              }}
+            >
+              Settings
+            </button>
+            <button
+              onClick={() => {
+                activeListRef.current = 1;
+                removeCompleted(remaining);
+                closeAllMenus();
+              }}
+            >
+              Delete completed items
+            </button>
+          </div>
+        )}
         <div
-          className={`list ${remainingPanelOpen ? "menu-open" : ""}`}
+          className={`list ${remainingListNeedsOverflow ? "menu-open" : ""}`}
           ref={remainingListRef}
           style={{
             maxHeight: remainingOpen ? `${listCaps.remaining}px` : "0px",
-            overflowY: remainingOpen && !remainingPanelOpen ? "auto" : "visible",
+            overflowY: remainingOpen && !remainingListNeedsOverflow ? "auto" : "visible",
           }}
         >
-          {remainingMenuOpen && (
-            <div className="list-menu">
-              <button
-                onClick={() => {
-                  setRemainingMenuOpen(false);
-                  closeAllMenus();
-                }}
-              >
-                Settings
-              </button>
-              <button
-                onClick={() => {
-                  activeListRef.current = 1;
-                  removeCompleted(remaining);
-                  closeAllMenus();
-                }}
-              >
-                Delete completed items
-              </button>
-            </div>
-          )}
           {remainingOpen && (
             <>
               {remaining.length ? (
@@ -1004,7 +1036,13 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 if (!submitted && next?.dueDate) {
                   setDueDate(next.dueDate);
                 }
-                closeAllMenus();
+                // Close menus without re-submitting (submitTaskWithMeta already handled it)
+                setMenuOpen(false);
+                setRemainingMenuOpen(false);
+                setDueListMenuOpen(false);
+                setDueViewMenuOpen(false);
+                setCompleteMenuId(null);
+                setItemMenuId(null);
               },
             )}
         </div>
