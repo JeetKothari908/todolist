@@ -1,4 +1,5 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 
 import { useSavedReducer } from "../../../hooks";
 import { Icon, RemoveIcon } from "../../../views/shared";
@@ -85,6 +86,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [dueView, setDueView] = useState<"today" | "finished">("today");
   const [completeMenuId, setCompleteMenuId] = useState<string | null>(null);
   const [itemMenuId, setItemMenuId] = useState<string | null>(null);
+  const [popoverAnchor, setPopoverAnchor] = useState<{ top: number; left: number; right: number; bottom: number } | null>(null);
+  const [completeMenuAnchor, setCompleteMenuAnchor] = useState<{ top: number; left: number; right: number; bottom: number } | null>(null);
   const [draftItemMeta, setDraftItemMeta] = useState<{
     id: string;
     dueDate?: string;
@@ -151,7 +154,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     setDueListMenuOpen(false);
     setDueViewMenuOpen(false);
     setCompleteMenuId(null);
+    setCompleteMenuAnchor(null);
     setItemMenuId(null);
+    setPopoverAnchor(null);
   };
 
   const closeAllMenusRef = useRef(closeAllMenus);
@@ -179,9 +184,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   }, []);
 
   const setItems = (items: State) => setData({ ...data, items });
-  const dispatch = useSavedReducer(reducer, data.items, setItems);
-
-  const items = data.items;
+  const [items, dispatch] = useSavedReducer(reducer, data.items, setItems);
   const today = new Date();
   const todayYmd = getYmd(today);
   const todayDay = today.getDay();
@@ -489,7 +492,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         <button
           className="check"
           aria-label="Toggle task"
-          onClick={() => {
+          onClick={(e) => {
             activeListRef.current = listIdx;
             if (item.completed) {
               dispatch(toggleTodo(item.id));
@@ -497,6 +500,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             }
             if (item.repeat) {
               closeAllMenus();
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setCompleteMenuAnchor({ top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom });
               setCompleteMenuId((prev) => (prev === item.id ? null : item.id));
               return;
             }
@@ -552,21 +557,29 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         <button
           className="item-menu"
           aria-label="Task options"
-          onClick={() => {
+          onClick={(e) => {
             closeAllMenus();
             setDraftItemMeta({
               id: item.id,
               dueDate: item.dueDate,
               repeat: item.repeat,
             });
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            setPopoverAnchor({ top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom });
             setItemMenuId((prev) => (prev === item.id ? null : item.id));
           }}
         >
           <Icon name="more-horizontal" />
         </button>
 
-        {itemMenuId === item.id && (
-          <div className={`item-popover${openUp ? " up" : " down"}`}>
+        {itemMenuId === item.id && popoverAnchor && ReactDOM.createPortal(
+          <div
+            className={`TodoPlus-portal item-popover${openUp ? " up" : " down"}`}
+            style={openUp
+              ? { position: "fixed", bottom: `${window.innerHeight - popoverAnchor.top + 8}px`, right: `${window.innerWidth - popoverAnchor.right}px` }
+              : { position: "fixed", top: `${popoverAnchor.bottom + 8}px`, right: `${window.innerWidth - popoverAnchor.right}px` }
+            }
+          >
             {renderRepeatMenu(
               draftItemMeta?.repeat ?? item.repeat,
               (next) =>
@@ -622,11 +635,18 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 setItemMenuId(null);
               },
             )}
-          </div>
+          </div>,
+          document.body,
         )}
 
-        {completeMenuId === item.id && (
-          <div className={`complete-menu${openUp ? " up" : " down"}`}>
+        {completeMenuId === item.id && completeMenuAnchor && ReactDOM.createPortal(
+          <div
+            className={`TodoPlus-portal complete-menu${openUp ? " up" : " down"}`}
+            style={openUp
+              ? { position: "fixed", bottom: `${window.innerHeight - completeMenuAnchor.top + 8}px`, left: `${completeMenuAnchor.left}px` }
+              : { position: "fixed", top: `${completeMenuAnchor.bottom + 8}px`, left: `${completeMenuAnchor.left}px` }
+            }
+          >
             <button
               onClick={() => {
                 activeListRef.current = listIdx;
@@ -661,7 +681,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             >
               Complete Task
             </button>
-          </div>
+          </div>,
+          document.body,
         )}
 
         <button
@@ -678,24 +699,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       );
     });
 
-  const listHasOpenItemMenu = (list: State) =>
-    itemMenuId ? list.some((item) => item.id === itemMenuId) : false;
-  const listHasOpenCompleteMenu = (list: State) =>
-    completeMenuId ? list.some((item) => item.id === completeMenuId) : false;
-
-  // Menus rendered INSIDE the .list that need overflow:visible to avoid clipping
-  const dueListNeedsOverflow =
-    listHasOpenItemMenu(dueList) ||
-    listHasOpenCompleteMenu(dueList);
-  const remainingListNeedsOverflow =
-    listHasOpenItemMenu(remaining) ||
-    listHasOpenCompleteMenu(remaining);
-
-  // Panel-level elevation (z-index) — includes menus rendered outside the list
+  // Panel-level elevation (z-index)
   const duePanelOpen =
-    dueViewMenuOpen || dueListMenuOpen || dueListNeedsOverflow;
+    dueViewMenuOpen || dueListMenuOpen;
   const remainingPanelOpen =
-    menuOpen || remainingMenuOpen || remainingListNeedsOverflow;
+    menuOpen || remainingMenuOpen;
 
   useEffect(() => {
     const recalc = () => {
@@ -877,11 +885,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           </div>
         )}
         <div
-          className={`list ${dueListNeedsOverflow ? "menu-open" : ""}`}
+          className="list"
           ref={dueListRef}
           style={{
             maxHeight: dueOpen ? `${listCaps.due}px` : "0px",
-            overflowY: dueOpen && !dueListNeedsOverflow ? "auto" : "visible",
+            overflowY: dueOpen ? "auto" : "hidden",
           }}
         >
           {dueOpen && (
@@ -950,11 +958,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           </div>
         )}
         <div
-          className={`list ${remainingListNeedsOverflow ? "menu-open" : ""}`}
+          className="list"
           ref={remainingListRef}
           style={{
             maxHeight: remainingOpen ? `${listCaps.remaining}px` : "0px",
-            overflowY: remainingOpen && !remainingListNeedsOverflow ? "auto" : "visible",
+            overflowY: remainingOpen ? "auto" : "hidden",
           }}
         >
           {remainingOpen && (

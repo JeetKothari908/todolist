@@ -12,9 +12,9 @@ const Todo: FC<Props> = ({ data = defaultData, setData }) => {
   const [showMore, toggleShowMore] = useToggle();
 
   const setItems = (items: State) => setData({ ...data, items });
-  const dispatch = useSavedReducer(reducer, data.items, setItems);
+  const [todoItems, dispatch] = useSavedReducer(reducer, data.items, setItems);
 
-  const items = data.items.filter((item) => !item.completed || showCompleted);
+  const items = todoItems.filter((item) => !item.completed || showCompleted);
   const show = !showMore ? data.show : undefined;
 
   const keyBind = data.keyBind ?? "T";

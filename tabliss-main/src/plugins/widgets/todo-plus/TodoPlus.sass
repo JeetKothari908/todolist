@@ -56,8 +56,6 @@
         > .empty
             margin-left: 2px
 
-    .list.menu-open
-        overflow: visible
     .list
         position: relative
 
@@ -345,60 +343,13 @@
             z-index: 50
 
     .item-popover
-        margin-top: 8px
-        background: #f0f0f0
-        border: 1px solid rgba(0, 0, 0, 0.06)
-        border-radius: 12px
-        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18)
-        padding: 10px
-        display: flex
-        flex-direction: column
-        gap: 10px
-        font-size: 14px
-        color: #4b4b4b
-        position: absolute
-        right: 0
-        top: 28px
-        z-index: 50
-        pointer-events: auto
+        display: none
 
     .item-popover.up
-        top: auto
-        bottom: 32px
-        margin-top: 0
-        margin-bottom: 8px
+        display: none
 
     .complete-menu
-        margin-top: 8px
-        background: #f0f0f0
-        border: 1px solid rgba(0, 0, 0, 0.06)
-        border-radius: 10px
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15)
-        padding: 6px
-        display: grid
-        gap: 2px
-        position: absolute
-        left: 18px
-        top: 24px
-        z-index: 50
-
-        &.up
-            top: auto
-            bottom: 28px
-            margin-top: 0
-
-        button
-            border: 0
-            background: transparent
-            text-align: left
-            font-size: 12px
-            color: #3c3c3c
-            padding: 6px 8px
-            border-radius: 6px
-            cursor: pointer
-
-        button:hover
-            background: rgba(0, 0, 0, 0.06)
+        display: none
 
     .menu-row
         display: flex
@@ -470,3 +421,108 @@
         max-width: 92vw
     .item + .item
         margin-top: 2px
+
+// Portal-rendered menus (rendered in document.body)
+.TodoPlus-portal.item-popover
+    background: #f0f0f0
+    border: 1px solid rgba(0, 0, 0, 0.06)
+    border-radius: 12px
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18)
+    padding: 10px
+    display: flex
+    flex-direction: column
+    gap: 10px
+    font-size: 14px
+    color: #4b4b4b
+    z-index: 100000
+    pointer-events: auto
+    font-family: "Bricolage Grotesque", "Sebino", "Sabino", "Helvetica Neue", "SF Pro Text", "Avenir Next", Avenir, Arial, sans-serif
+    width: 260px
+
+    .menu-row
+        display: flex
+        align-items: center
+        justify-content: space-between
+        gap: 10px
+
+    .menu-row-label
+        display: flex
+        align-items: center
+        gap: 8px
+
+    .menu-row-value
+        font-size: 12px
+        color: #8a8a8a
+
+    .calendar-button
+        display: inline-flex
+        align-items: center
+        justify-content: center
+        width: 28px
+        height: 28px
+        border-radius: 8px
+        background: #ffffff
+        border: 1px solid rgba(0, 0, 0, 0.1)
+        cursor: pointer
+        position: relative
+
+        input
+            position: absolute
+            inset: 0
+            opacity: 0
+            cursor: pointer
+
+    .repeat
+        display: flex
+        flex-direction: column
+        gap: 8px
+
+    .repeat-options
+        display: flex
+        flex-wrap: wrap
+        gap: 6px
+
+    .repeat-options button,
+    .custom-days button
+        border: 1px solid rgba(0, 0, 0, 0.12)
+        background: transparent
+        border-radius: 999px
+        padding: 4px 10px
+        font-size: 12px
+        color: #5a5a5a
+        cursor: pointer
+
+    .repeat-options button.active,
+    .custom-days button.active
+        background: #2f80ed
+        border-color: #2f80ed
+        color: #ffffff
+
+    .custom-days
+        display: flex
+        flex-wrap: nowrap
+        gap: 6px
+
+.TodoPlus-portal.complete-menu
+    background: #f0f0f0
+    border: 1px solid rgba(0, 0, 0, 0.06)
+    border-radius: 10px
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15)
+    padding: 6px
+    display: grid
+    gap: 2px
+    z-index: 100000
+    font-family: "Bricolage Grotesque", "Sebino", "Sabino", "Helvetica Neue", "SF Pro Text", "Avenir Next", Avenir, Arial, sans-serif
+
+    button
+        border: 0
+        background: transparent
+        text-align: left
+        font-size: 12px
+        color: #3c3c3c
+        padding: 6px 8px
+        border-radius: 6px
+        cursor: pointer
+
+    button:hover
+        background: rgba(0, 0, 0, 0.06)

@@ -8,7 +8,7 @@ import { Link, Props, defaultData } from "./types";
 
 const LinksSettings: FC<Props> = ({ data = defaultData, setData }) => {
   const saveLinks = (links: Link[]) => setData({ ...data, links });
-  const dispatch = useSavedReducer(reducer, data.links, saveLinks);
+  const [links, dispatch] = useSavedReducer(reducer, data.links, saveLinks);
 
   return (
     <div className="LinksSettings">
@@ -46,7 +46,7 @@ const LinksSettings: FC<Props> = ({ data = defaultData, setData }) => {
 
       <hr />
 
-      {data.links.map((link, index) => (
+      {links.map((link, index) => (
         <Input
           {...link}
           key={index}
@@ -60,7 +60,7 @@ const LinksSettings: FC<Props> = ({ data = defaultData, setData }) => {
               : undefined
           }
           onMoveDown={
-            index !== data.links.length - 1
+            index !== links.length - 1
               ? () => dispatch(reorderLink(index, index + 1))
               : undefined
           }
