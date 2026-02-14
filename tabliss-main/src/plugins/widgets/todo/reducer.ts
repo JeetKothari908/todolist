@@ -4,6 +4,7 @@ type Todo = {
   id: string;
   contents: string;
   completed: boolean;
+  dismissed?: boolean;
   dueDate?: string;
   repeat?: Repeat;
   parentId?: string;
@@ -27,7 +28,14 @@ export function reducer(state: State, action: Action) {
     case "TOGGLE_TODO":
       return state.map((todo) =>
         todo.id === action.data.id
-          ? { ...todo, completed: !todo.completed }
+          ? { ...todo, completed: !todo.completed, dismissed: false }
+          : todo,
+      );
+
+    case "DISMISS_TODO":
+      return state.map((todo) =>
+        todo.id === action.data.id
+          ? { ...todo, dismissed: true }
           : todo,
       );
 

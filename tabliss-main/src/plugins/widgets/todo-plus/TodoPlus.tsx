@@ -8,6 +8,7 @@ import {
   addTodo,
   removeTodo,
   toggleTodo,
+  dismissTodo,
   updateTodo,
   updateTodoMeta,
   completeRepeatInstance,
@@ -318,8 +319,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     return repeatDays.includes(todayDay);
   };
 
-  const activeItems = items.filter((item) => !item.completed);
-  const finished = items.filter((item) => item.completed);
+  const activeItems = items.filter((item) => !item.dismissed);
+  const finished = items.filter((item) => item.dismissed);
   const dueToday = activeItems.filter((item) => isDueToday(item));
   const remaining = activeItems.filter((item) => !isDueToday(item));
   const remainingSorted = [...remaining].sort((a, b) => {
@@ -550,7 +551,15 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               {item.contents}
             </span>
             {item.completed && (
-              <span className="completed-icon">
+              <span
+                className="completed-icon"
+                onClick={() => {
+                  activeListRef.current = listIdx;
+                  dispatch(dismissTodo(item.id));
+                }}
+                style={{ cursor: "pointer" }}
+                title="Send to finished"
+              >
                 <Icon name="x" size={12} />
               </span>
             )}

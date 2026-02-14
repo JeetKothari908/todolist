@@ -31,6 +31,13 @@ export function toggleTodo(id: string) {
   } as const;
 }
 
+export function dismissTodo(id: string) {
+  return {
+    type: "DISMISS_TODO",
+    data: { id },
+  } as const;
+}
+
 export function updateTodo(id: string, contents: string) {
   return {
     type: "UPDATE_TODO",
@@ -93,6 +100,7 @@ export type Action =
   | ReturnType<typeof addTodo>
   | ReturnType<typeof removeTodo>
   | ReturnType<typeof toggleTodo>
+  | ReturnType<typeof dismissTodo>
   | ReturnType<typeof updateTodo>
   | ReturnType<typeof updateTodoMeta>
   | ReturnType<typeof completeInstance>
