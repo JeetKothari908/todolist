@@ -17,6 +17,8 @@ export interface State {
   locale: string;
   /** Time zone selected, if any */
   timeZone: string | null;
+  /** Whether the quotes widget is shown */
+  showQuotes: boolean;
 }
 
 export interface BackgroundState {
@@ -101,6 +103,7 @@ const initData: State = {
   focus: false,
   locale: defaultLocale,
   timeZone: null,
+  showQuotes: true,
 };
 
 // Database storage

@@ -7,5 +7,4 @@ To Do:
 4. Change how the check box looks when its checked off to look more like momentum
 6. Getting the x icon working, and have that be labeled "finished" tasks and the garbage ones actually being deleted. 
 10. Make overdue tasks red and in "due today" 
-11. Make the quote thing easy to get rid of in settings
 12.

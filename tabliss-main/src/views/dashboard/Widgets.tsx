@@ -37,12 +37,16 @@ function useIsWindowMaximized() {
 
 const Widgets: React.FC = () => {
   const focus = useValue(db, "focus");
+  const showQuotes = useValue(db, "showQuotes");
   const isFullscreen = useIsWindowMaximized();
   const allWidgets = useSelector(db, selectWidgets);
 
   // Only show the todo widget when the window is fullscreen / maximized
+  // Hide quotes widget when showQuotes is false
   const widgets = allWidgets.filter(
-    (widget) => widget.key !== "widget/todo" || isFullscreen,
+    (widget) =>
+      (widget.key !== "widget/todo" || isFullscreen) &&
+      (widget.key !== "widget/quote" || showQuotes),
   );
 
   // TODO: one day we'll have `Array.groupBy` accepted by tc39

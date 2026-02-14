@@ -2,13 +2,16 @@ import React from "react";
 import { FormattedMessage } from "react-intl";
 import { UiContext } from "../../contexts/ui";
 import { exportStore, importStore, resetStore } from "../../db/action";
+import { db } from "../../db/state";
 import { useKeyPress } from "../../hooks";
+import { useKey } from "../../lib/db/react";
 import Background from "./Background";
 import "./Settings.sass";
 import System from "./System";
 
 const Settings: React.FC = () => {
   const { toggleSettings } = React.useContext(UiContext);
+  const [showQuotes, setShowQuotes] = useKey(db, "showQuotes");
 
   const handleReset = () => {
     if (
@@ -75,6 +78,16 @@ const Settings: React.FC = () => {
         <Background />
 
         <System />
+
+        <h2>Widgets</h2>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={showQuotes}
+            onChange={() => setShowQuotes(!showQuotes)}
+          />
+          Quotes
+        </label>
 
         <p style={{ marginBottom: "2rem" }}>
           <a onClick={handleImport}>Import</a>,{" "}
