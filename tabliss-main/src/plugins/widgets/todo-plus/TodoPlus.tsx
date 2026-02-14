@@ -480,7 +480,6 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     },
   ) =>
     list.map((item, index) => {
-      const openUp = index >= list.length - 1;
       const isDrafting = draftItemMeta?.id === item.id;
       const displayRepeat = isDrafting ? normalizeRepeat(draftItemMeta.repeat) : item.repeat;
       const displayDueDate = isDrafting
@@ -578,10 +577,15 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           <Icon name="more-horizontal" />
         </button>
 
-        {itemMenuId === item.id && popoverAnchor && ReactDOM.createPortal(
+        {itemMenuId === item.id && popoverAnchor && (() => {
+          // Max height of the repeat menu fully expanded (due row + repeat options + custom days + padding/gaps)
+          const estimatedMenuHeight = 200;
+          const spaceBelow = window.innerHeight - popoverAnchor.bottom - 8;
+          const popoverUp = spaceBelow < estimatedMenuHeight && popoverAnchor.top > spaceBelow;
+          return ReactDOM.createPortal(
           <div
-            className={`TodoPlus-portal item-popover${openUp ? " up" : " down"}`}
-            style={openUp
+            className={`TodoPlus-portal item-popover${popoverUp ? " up" : " down"}`}
+            style={popoverUp
               ? { position: "fixed", bottom: `${window.innerHeight - popoverAnchor.top + 8}px`, right: `${window.innerWidth - popoverAnchor.right}px` }
               : { position: "fixed", top: `${popoverAnchor.bottom + 8}px`, right: `${window.innerWidth - popoverAnchor.right}px` }
             }
@@ -643,12 +647,17 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             )}
           </div>,
           document.body,
-        )}
+        );
+        })()}
 
-        {completeMenuId === item.id && completeMenuAnchor && ReactDOM.createPortal(
+        {completeMenuId === item.id && completeMenuAnchor && (() => {
+          const estimatedCompleteHeight = 80;
+          const spaceBelow = window.innerHeight - completeMenuAnchor.bottom - 8;
+          const completeUp = spaceBelow < estimatedCompleteHeight && completeMenuAnchor.top > spaceBelow;
+          return ReactDOM.createPortal(
           <div
-            className={`TodoPlus-portal complete-menu${openUp ? " up" : " down"}`}
-            style={openUp
+            className={`TodoPlus-portal complete-menu${completeUp ? " up" : " down"}`}
+            style={completeUp
               ? { position: "fixed", bottom: `${window.innerHeight - completeMenuAnchor.top + 8}px`, left: `${completeMenuAnchor.left}px` }
               : { position: "fixed", top: `${completeMenuAnchor.bottom + 8}px`, left: `${completeMenuAnchor.left}px` }
             }
@@ -703,7 +712,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             </button>
           </div>,
           document.body,
-        )}
+        );
+        })()}
 
         <button
           className="delete"
