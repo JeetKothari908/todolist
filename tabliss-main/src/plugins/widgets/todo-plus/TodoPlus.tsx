@@ -194,6 +194,20 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const todayYmd = getYmd(today);
   const todayDay = today.getDay();
 
+  // Auto-dismiss completed items from the "due today" list at the start of each new day
+  useEffect(() => {
+    if (data.lastClearedDate === todayYmd) return;
+    const toClear = items.filter(
+      (item) =>
+        !item.dismissed &&
+        item.completed &&
+        item.dueDate &&
+        item.dueDate < todayYmd,
+    );
+    toClear.forEach((item) => dispatch(dismissTodo(item.id)));
+    setData({ ...data, lastClearedDate: todayYmd });
+  }, [todayYmd]);
+
   const repeat: Repeat | undefined = useMemo(() => {
     if (repeatType === "daily") return { type: "daily" };
     if (repeatType === "weekly") {

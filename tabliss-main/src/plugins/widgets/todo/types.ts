@@ -5,6 +5,7 @@ export type Data = {
   items: State;
   show: number;
   keyBind?: string;
+  lastClearedDate?: string;
 };
 
 export type Props = API<Data>;
