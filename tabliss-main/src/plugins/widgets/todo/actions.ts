@@ -3,7 +3,7 @@ import { Repeat } from "./reducer";
 
 export function addTodo(
   contents = "",
-  meta?: { dueDate?: string; repeat?: Repeat },
+  meta?: { dueDate?: string; repeat?: Repeat; listId?: string },
 ) {
   return {
     type: "ADD_TODO",
@@ -13,6 +13,7 @@ export function addTodo(
       completed: false,
       dueDate: meta?.dueDate,
       repeat: meta?.repeat,
+      listId: meta?.listId,
     },
   } as const;
 }
@@ -96,6 +97,13 @@ export function uncompleteRepeatInstance(
   } as const;
 }
 
+export function moveTodo(id: string, listId?: string) {
+  return {
+    type: "MOVE_TODO",
+    data: { id, listId },
+  } as const;
+}
+
 export type Action =
   | ReturnType<typeof addTodo>
   | ReturnType<typeof removeTodo>
@@ -106,4 +114,5 @@ export type Action =
   | ReturnType<typeof completeInstance>
   | ReturnType<typeof completeTask>
   | ReturnType<typeof completeRepeatInstance>
-  | ReturnType<typeof uncompleteRepeatInstance>;
+  | ReturnType<typeof uncompleteRepeatInstance>
+  | ReturnType<typeof moveTodo>;

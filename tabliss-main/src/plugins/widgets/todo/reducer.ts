@@ -8,6 +8,7 @@ type Todo = {
   dueDate?: string;
   repeat?: Repeat;
   parentId?: string;
+  listId?: string;
 };
 
 export type State = Todo[];
@@ -77,6 +78,7 @@ export function reducer(state: State, action: Action) {
         dueDate: action.data.instanceDueDate,
         repeat: parent.repeat,
         parentId: action.data.parentId,
+        listId: parent.listId,
       };
       return state
         .map((todo) =>
@@ -105,6 +107,13 @@ export function reducer(state: State, action: Action) {
         return todo;
       });
     }
+
+    case "MOVE_TODO":
+      return state.map((todo) =>
+        todo.id === action.data.id
+          ? { ...todo, listId: action.data.listId }
+          : todo,
+      );
 
     default:
       throw new Error("Unknown action");

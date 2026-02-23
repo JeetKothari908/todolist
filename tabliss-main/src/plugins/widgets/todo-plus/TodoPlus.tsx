@@ -13,9 +13,11 @@ import {
   updateTodoMeta,
   completeRepeatInstance,
   uncompleteRepeatInstance,
+  moveTodo,
 } from "../todo/actions";
+import { nanoid } from "nanoid";
 import { reducer, Repeat, State } from "../todo/reducer";
-import { defaultData, Props } from "../todo/types";
+import { defaultData, Props, CustomList } from "../todo/types";
 import { calculateCappedHeights } from "../../../hooks/calculateCappedHeights";
 import "./TodoPlus.sass";
 
@@ -88,7 +90,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [remainingMenuOpen, setRemainingMenuOpen] = useState(false);
   const [dueListMenuOpen, setDueListMenuOpen] = useState(false);
   const [dueViewMenuOpen, setDueViewMenuOpen] = useState(false);
-  const [dueView, setDueView] = useState<"today" | "finished">("today");
+  const [dueView, setDueView] = useState<"today" | "finished" | string>("today");
   const [completeMenuId, setCompleteMenuId] = useState<string | null>(null);
   const [itemMenuId, setItemMenuId] = useState<string | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<{ top: number; left: number; right: number; bottom: number } | null>(null);
@@ -105,9 +107,19 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [customDays, setCustomDays] = useState<number[]>([]);
   const [dueOpen, setDueOpen] = useState(true);
   const [remainingOpen, setRemainingOpen] = useState(true);
-  const [listCaps, setListCaps] = useState({ due: 220, remaining: 220 });
-  const [cappedLists, setCappedLists] = useState({ due: false, remaining: false });
-  const activeListRef = useRef(1); // 0 = due panel, 1 = remaining/inbox panel
+  const [listCaps, setListCaps] = useState<Record<string, number>>({ due: 220, remaining: 220 });
+  const [cappedLists, setCappedLists] = useState<Record<string, boolean>>({ due: false, remaining: false });
+  const activeListRef = useRef(1); // 0 = due panel, 1 = inbox panel
+
+  const customLists = data?.customLists ?? [];
+  const [selectedListId, setSelectedListId] = useState<string | undefined>(undefined);
+  const [listPickerOpen, setListPickerOpen] = useState(false);
+  const [addingListPanel, setAddingListPanel] = useState<"due" | "inbox" | null>(null);
+  const [newListName, setNewListName] = useState("");
+  const [renamingListId, setRenamingListId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [inboxViewMenuOpen, setInboxViewMenuOpen] = useState(false);
+  const [inboxView, setInboxView] = useState<"inbox" | string>("inbox");
 
   const repeatEqual = (a?: Repeat, b?: Repeat) => {
     if (!a && !b) return true;
@@ -158,10 +170,22 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     setRemainingMenuOpen(false);
     setDueListMenuOpen(false);
     setDueViewMenuOpen(false);
+    setInboxViewMenuOpen(false);
     setCompleteMenuId(null);
     setCompleteMenuAnchor(null);
     setItemMenuId(null);
     setPopoverAnchor(null);
+    setListPickerOpen(false);
+    if (addingListPanel && newListName.trim()) {
+      commitAddList();
+    }
+    setAddingListPanel(null);
+    setNewListName("");
+    if (renamingListId && renameValue.trim()) {
+      commitRename();
+    }
+    setRenamingListId(null);
+    setRenameValue("");
   };
 
   const closeAllMenusRef = useRef(closeAllMenus);
@@ -178,7 +202,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         target.closest(".item-menu") ||
         target.closest(".menu-toggle") ||
         target.closest(".due-view-menu") ||
-        target.closest(".complete-menu")
+        target.closest(".inbox-view-menu") ||
+        target.closest(".complete-menu") ||
+        target.closest(".list-picker") ||
+        target.closest(".inline-add-list") ||
+        target.closest(".inline-rename")
       ) {
         return;
       }
@@ -224,7 +252,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     const trimmed = input.trim();
     if (!trimmed) return;
     activeListRef.current = dueDate === todayYmd ? 0 : 1;
-    dispatch(addTodo(trimmed, { dueDate, repeat }));
+    dispatch(addTodo(trimmed, { dueDate, repeat, listId: selectedListId }));
     setInput("");
     setDueDate(undefined);
     setRepeatType("none");
@@ -240,6 +268,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       addTodo(trimmed, {
         dueDate: finalDueDate,
         repeat: meta?.repeat ?? repeat,
+        listId: selectedListId,
       }),
     );
     setInput("");
@@ -265,6 +294,60 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   };
 
   const showMenuToggle = inputFocused || input.trim().length > 0;
+
+  // ── List CRUD helpers ─────────────────────────────────────
+  const commitAddList = () => {
+    const trimmed = newListName.trim();
+    if (!trimmed) return;
+    const newList: CustomList = { id: nanoid(), name: trimmed };
+    setData({ ...data, customLists: [...customLists, newList] });
+    // Switch the panel that initiated the add to show the new list
+    if (addingListPanel === "due") setDueView(newList.id);
+    else if (addingListPanel === "inbox") setInboxView(newList.id);
+    setNewListName("");
+    setAddingListPanel(null);
+  };
+
+  const commitRename = () => {
+    if (!renamingListId) return;
+    const trimmed = renameValue.trim();
+    if (!trimmed) { setRenamingListId(null); return; }
+    setData({
+      ...data,
+      customLists: customLists.map((l) =>
+        l.id === renamingListId ? { ...l, name: trimmed } : l,
+      ),
+    });
+    setRenamingListId(null);
+    setRenameValue("");
+  };
+
+  const deleteList = (listId: string) => {
+    // Move all tasks in the deleted list back to inbox
+    items.forEach((item) => {
+      if (item.listId === listId) dispatch(moveTodo(item.id, undefined));
+    });
+    setData({
+      ...data,
+      customLists: customLists.filter((l) => l.id !== listId),
+    });
+    // Reset views if they were showing the deleted list
+    if (dueView === listId) setDueView("today");
+    if (inboxView === listId) setInboxView("inbox");
+  };
+
+  const startAddList = (panel: "due" | "inbox") => {
+    closeAllMenus();
+    setNewListName("");
+    setAddingListPanel(panel);
+  };
+
+  const startRenameList = (list: CustomList) => {
+    closeAllMenus();
+    setRenameValue(list.name);
+    setRenamingListId(list.id);
+  };
+  // ──────────────────────────────────────────────────────────
 
   const formatDueDate = (date?: string) => {
     if (!date) return null;
@@ -335,11 +418,19 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
 
   const activeItems = items.filter((item) => !item.dismissed);
   const finished = items.filter((item) => item.dismissed);
-  const dueToday = [...activeItems.filter((item) => isDueToday(item))].sort((a, b) => {
+
+  // Determine effective list membership (invalid listIds fall back to inbox)
+  const customListIds = useMemo(() => new Set(customLists.map((l) => l.id)), [customLists]);
+  const getEffectiveListId = (item: State[number]) =>
+    item.listId && customListIds.has(item.listId) ? item.listId : undefined;
+
+  // Items not assigned to any custom list
+  const unlistedActive = activeItems.filter((item) => !getEffectiveListId(item));
+  const dueToday = [...unlistedActive.filter((item) => isDueToday(item))].sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     return 0;
   });
-  const remaining = activeItems.filter((item) => !isDueToday(item));
+  const remaining = unlistedActive.filter((item) => !isDueToday(item));
   const remainingSorted = [...remaining].sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     const aDue = getTaskDisplayDueDate(a);
@@ -357,8 +448,39 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     if (!bDue) return 1;
     return aDue.localeCompare(bDue);
   });
-  const dueList = dueView === "today" ? dueToday : finishedSorted;
-  const dueLabel = dueView === "today" ? "Due Today" : "Finished Tasks";
+
+  // Items in custom lists (active, not dismissed)
+  const customListItemsMap: Record<string, State> = {};
+  customLists.forEach((cl) => {
+    const clItems = activeItems.filter((item) => getEffectiveListId(item) === cl.id);
+    customListItemsMap[cl.id] = [...clItems].sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      const aDue = getTaskDisplayDueDate(a);
+      const bDue = getTaskDisplayDueDate(b);
+      if (!aDue && !bDue) return 0;
+      if (!aDue) return -1;
+      if (!bDue) return 1;
+      return aDue.localeCompare(bDue);
+    });
+  });
+
+  const dueList = dueView === "today"
+    ? dueToday
+    : dueView === "finished"
+      ? finishedSorted
+      : customListItemsMap[dueView] ?? [];
+  const dueLabel = dueView === "today"
+    ? "Due Today"
+    : dueView === "finished"
+      ? "Finished Tasks"
+      : customLists.find((l) => l.id === dueView)?.name ?? "Unknown List";
+
+  const inboxList = inboxView === "inbox"
+    ? remainingSorted
+    : customListItemsMap[inboxView] ?? [];
+  const inboxLabel = inboxView === "inbox"
+    ? "Inbox"
+    : customLists.find((l) => l.id === inboxView)?.name ?? "Unknown List";
 
   const removeCompleted = (list: State) => {
     list.filter((item) => item.completed).forEach((item) => {
@@ -682,6 +804,37 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 setItemMenuId(null);
               },
             )}
+            {customLists.length > 0 && (
+              <div className="menu-row" style={{ marginTop: "4px", paddingTop: "8px", borderTop: "1px solid rgba(0,0,0,0.08)" }}>
+                <span>List</span>
+                <select
+                  value={item.listId ?? ""}
+                  onChange={(e) => {
+                    const newListId = e.target.value || undefined;
+                    dispatch(moveTodo(item.id, newListId));
+                    commitDraftItemMeta();
+                    setItemMenuId(null);
+                    setPopoverAnchor(null);
+                  }}
+                  style={{
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    borderRadius: "6px",
+                    padding: "4px 8px",
+                    fontSize: "12px",
+                    background: "#fff",
+                    color: "#3c3c3c",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="">Inbox</option>
+                  {customLists.map((cl) => (
+                    <option key={cl.id} value={cl.id}>
+                      {cl.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>,
           document.body,
         );
@@ -770,7 +923,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const duePanelOpen =
     dueViewMenuOpen || dueListMenuOpen;
   const remainingPanelOpen =
-    menuOpen || remainingMenuOpen;
+    menuOpen || remainingMenuOpen || listPickerOpen || inboxViewMenuOpen;
 
   useEffect(() => {
     const recalc = () => {
@@ -786,75 +939,90 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
 
       const viewportHeight = window.innerHeight;
       const verticalPadding = Math.max(40, Math.round(viewportHeight * 0.12));
-
-      // The widget is vertically centered via CSS transform, so the
-      // total widget height must not exceed the viewport.  Base
-      // available height on the viewport minus padding.
       const availableHeight = Math.max(0, viewportHeight - verticalPadding);
 
-      const dueFixed =
-        duePanelRef.current.offsetHeight - dueListRef.current.offsetHeight;
-      const remainingFixed =
-        remainingPanelRef.current.offsetHeight - remainingListRef.current.offsetHeight;
+      // Collect all panels
+      type PanelInfo = { key: string; fixed: number; need: number };
+      const panels: PanelInfo[] = [];
+
+      panels.push({
+        key: "due",
+        fixed: duePanelRef.current.offsetHeight - dueListRef.current.offsetHeight,
+        need: dueOpen ? dueListRef.current.scrollHeight : 0,
+      });
+
+      panels.push({
+        key: "remaining",
+        fixed: remainingPanelRef.current.offsetHeight - remainingListRef.current.offsetHeight,
+        need: remainingOpen ? remainingListRef.current.scrollHeight : 0,
+      });
+
       const rootStyles = getComputedStyle(rootRef.current);
       const gapFromCss = Number.parseFloat(rootStyles.rowGap || rootStyles.gap || "0");
       const panelGap = Number.isFinite(gapFromCss) && gapFromCss > 0
         ? gapFromCss
         : Math.max(8, Math.round(viewportHeight * 0.012));
-      const panelCount = 2;
+
+      const totalFixed = panels.reduce((sum, p) => sum + p.fixed, 0);
       const free = Math.max(
         0,
-        availableHeight - dueFixed - remainingFixed - panelGap * (panelCount - 1),
+        availableHeight - totalFixed - panelGap * Math.max(0, panels.length - 1),
       );
 
-      // ── Height allocation ─────────────────────────────────────
-      // First pass: Due gets what it needs up to half the free space.
-      const dueNeed = dueOpen ? dueListRef.current.scrollHeight : 0;
-      const remainingNeed = remainingOpen ? remainingListRef.current.scrollHeight : 0;
-      const maxDueShare = Math.floor(free / 2);
-      let dueCap = Math.min(dueNeed, maxDueShare);
-      let remainingCap = Math.max(0, free - dueCap);
+      // Proportional allocation with surplus redistribution
+      const caps: Record<string, number> = {};
+      const openPanels = panels.filter((p) => p.need > 0);
+      const totalNeed = openPanels.reduce((sum, p) => sum + p.need, 0);
 
-      // Second pass: if Inbox doesn't need all its space, give the
-      // surplus back to the due panel so it can grow when switching
-      // between views with different task counts.
-      if (remainingNeed < remainingCap) {
-        const surplus = remainingCap - remainingNeed;
-        dueCap = Math.min(dueNeed, dueCap + surplus);
-        remainingCap = Math.max(0, free - dueCap);
+      if (totalNeed <= free) {
+        panels.forEach((p) => { caps[p.key] = p.need; });
+      } else if (totalNeed > 0) {
+        const sorted = [...openPanels].sort((a, b) => a.need - b.need);
+        let remainingFree = free;
+        let remainingCount = sorted.length;
+        for (const p of sorted) {
+          const share = Math.floor(remainingFree / remainingCount);
+          if (p.need <= share) {
+            caps[p.key] = p.need;
+            remainingFree -= p.need;
+          } else {
+            caps[p.key] = share;
+            remainingFree -= share;
+          }
+          remainingCount -= 1;
+        }
+        panels.filter((p) => p.need === 0).forEach((p) => { caps[p.key] = 0; });
+      } else {
+        panels.forEach((p) => { caps[p.key] = 0; });
       }
 
-      const newCappedLists = {
-        due: dueNeed > dueCap,
-        remaining: remainingOpen
-          ? remainingListRef.current.scrollHeight > remainingCap
-          : false,
-      };
+      const newCappedLists: Record<string, boolean> = {};
+      panels.forEach((p) => {
+        newCappedLists[p.key] = p.need > (caps[p.key] ?? 0);
+      });
 
-      setListCaps((prev) =>
-        prev.due === dueCap && prev.remaining === remainingCap
-          ? prev
-          : { due: dueCap, remaining: remainingCap },
-      );
+      setListCaps((prev) => {
+        const changed = panels.some((p) => prev[p.key] !== caps[p.key]);
+        return changed ? caps : prev;
+      });
       setCappedLists(newCappedLists);
     };
 
     recalc();
 
     const observer = new ResizeObserver(recalc);
-    [
+    const elementsToObserve: (Element | null)[] = [
       rootRef.current,
       duePanelRef.current,
       dueListRef.current,
       remainingPanelRef.current,
       remainingListRef.current,
-    ].forEach((el) => {
+    ];
+    elementsToObserve.forEach((el) => {
       if (el) observer.observe(el);
     });
 
-    const handleResize = () => {
-      recalc();
-    };
+    const handleResize = () => { recalc(); };
     window.addEventListener("resize", handleResize);
     return () => {
       observer.disconnect();
@@ -864,8 +1032,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     dueOpen,
     remainingOpen,
     dueView,
+    inboxView,
     dueList.length,
-    remaining.length,
+    inboxList.length,
     menuOpen,
     duePanelOpen,
     remainingPanelOpen,
@@ -880,16 +1049,47 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         <div className="header">
           <div className="section-title">
             <div className="section-left">
-              <button
-                className="section-switch"
-                onClick={() => {
-                  closeAllMenus();
-                  setDueViewMenuOpen(true);
-                }}
-                aria-label="Choose list view"
-              >
-                <span className="section-label">{dueLabel}</span>
-              </button>
+              {addingListPanel === "due" ? (
+                <div className="inline-rename">
+                  <input
+                    type="text"
+                    placeholder="New list name"
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitAddList();
+                      if (e.key === "Escape") { setAddingListPanel(null); setNewListName(""); }
+                    }}
+                    onBlur={() => { if (newListName.trim()) commitAddList(); else { setAddingListPanel(null); setNewListName(""); } }}
+                    autoFocus
+                  />
+                </div>
+              ) : renamingListId && renamingListId === dueView ? (
+                <div className="inline-rename">
+                  <input
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename();
+                      if (e.key === "Escape") { setRenamingListId(null); setRenameValue(""); }
+                    }}
+                    onBlur={commitRename}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <button
+                  className="section-switch"
+                  onClick={() => {
+                    closeAllMenus();
+                    setDueViewMenuOpen(true);
+                  }}
+                  aria-label="Choose list view"
+                >
+                  <span className="section-label">{dueLabel}</span>
+                </button>
+              )}
               <button
                 className="section-collapse"
                 onClick={() => setDueOpen(!dueOpen)}
@@ -928,6 +1128,17 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             >
               Finished Tasks
             </button>
+            {customLists.map((cl) => (
+              <button
+                key={cl.id}
+                onClick={() => {
+                  setDueView(cl.id);
+                  closeAllMenus();
+                }}
+              >
+                {cl.name}
+              </button>
+            ))}
           </div>
         )}
         {dueListMenuOpen && (
@@ -949,6 +1160,25 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             >
               Remove Finished Items
             </button>
+            <button onClick={() => startAddList("due")}>
+              Add List
+            </button>
+            {dueView !== "today" && dueView !== "finished" && (
+              <>
+                <button onClick={() => {
+                  const list = customLists.find((l) => l.id === dueView);
+                  if (list) startRenameList(list);
+                }}>
+                  Rename List
+                </button>
+                <button onClick={() => {
+                  closeAllMenus();
+                  deleteList(dueView);
+                }}>
+                  Delete List
+                </button>
+              </>
+            )}
           </div>
         )}
         <div
@@ -968,7 +1198,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 })
               ) : (
                 <div className="empty">
-                  {dueView === "today" ? "No tasks due today" : "No finished tasks"}
+                  {dueView === "today" ? "No tasks due today" : dueView === "finished" ? "No finished tasks" : `No tasks in ${dueLabel}`}
                 </div>
               )}
             </>
@@ -983,14 +1213,56 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       >
         <div className="header">
           <div className="section-title">
-            <button
-              className="section-toggle"
-              onClick={() => setRemainingOpen(!remainingOpen)}
-              aria-label="Collapse list"
-            >
-              <span className="section-label">Inbox</span>
-              <Icon name={remainingOpen ? "chevron-down" : "chevron-right"} />
-            </button>
+            <div className="section-left">
+              {addingListPanel === "inbox" ? (
+                <div className="inline-rename">
+                  <input
+                    type="text"
+                    placeholder="New list name"
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitAddList();
+                      if (e.key === "Escape") { setAddingListPanel(null); setNewListName(""); }
+                    }}
+                    onBlur={() => { if (newListName.trim()) commitAddList(); else { setAddingListPanel(null); setNewListName(""); } }}
+                    autoFocus
+                  />
+                </div>
+              ) : renamingListId && renamingListId === inboxView ? (
+                <div className="inline-rename">
+                  <input
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename();
+                      if (e.key === "Escape") { setRenamingListId(null); setRenameValue(""); }
+                    }}
+                    onBlur={commitRename}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <button
+                  className="section-switch"
+                  onClick={() => {
+                    closeAllMenus();
+                    setInboxViewMenuOpen(true);
+                  }}
+                  aria-label="Choose list view"
+                >
+                  <span className="section-label">{inboxLabel}</span>
+                </button>
+              )}
+              <button
+                className="section-collapse"
+                onClick={() => setRemainingOpen(!remainingOpen)}
+                aria-label="Collapse list"
+              >
+                <Icon name={remainingOpen ? "chevron-down" : "chevron-right"} />
+              </button>
+            </div>
             <button
               className="section-menu"
               onClick={() => {
@@ -1003,6 +1275,29 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             </button>
           </div>
         </div>
+        {inboxViewMenuOpen && (
+          <div className="inbox-view-menu">
+            <button
+              onClick={() => {
+                setInboxView("inbox");
+                closeAllMenus();
+              }}
+            >
+              Inbox
+            </button>
+            {customLists.map((cl) => (
+              <button
+                key={cl.id}
+                onClick={() => {
+                  setInboxView(cl.id);
+                  closeAllMenus();
+                }}
+              >
+                {cl.name}
+              </button>
+            ))}
+          </div>
+        )}
         {remainingMenuOpen && (
           <div className="list-menu">
             <button
@@ -1016,12 +1311,31 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             <button
               onClick={() => {
                 activeListRef.current = 1;
-                removeCompleted(remaining);
+                removeCompleted(inboxList);
                 closeAllMenus();
               }}
             >
               Remove Finished Items
             </button>
+            <button onClick={() => startAddList("inbox")}>
+              Add List
+            </button>
+            {inboxView !== "inbox" && (
+              <>
+                <button onClick={() => {
+                  const list = customLists.find((l) => l.id === inboxView);
+                  if (list) startRenameList(list);
+                }}>
+                  Rename List
+                </button>
+                <button onClick={() => {
+                  closeAllMenus();
+                  deleteList(inboxView);
+                }}>
+                  Delete List
+                </button>
+              </>
+            )}
           </div>
         )}
         <div
@@ -1034,10 +1348,12 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         >
           {remainingOpen && (
             <>
-              {remaining.length ? (
-                renderItems(remainingSorted, 1, { showDue: true, showRepeat: true })
+              {inboxList.length ? (
+                renderItems(inboxList, 1, { showDue: true, showRepeat: true })
               ) : (
-                <div className="empty">No remaining tasks</div>
+                <div className="empty">
+                  {inboxView === "inbox" ? "No remaining tasks" : `No tasks in ${inboxLabel}`}
+                </div>
               )}
             </>
           )}
@@ -1058,6 +1374,49 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 }
               }}
             />
+
+            {customLists.length > 0 && (
+              <div className="list-picker">
+                <button
+                  className={`list-picker-toggle${showMenuToggle ? "" : " hidden-control"}`}
+                  onClick={() => {
+                    closeAllMenus();
+                    setListPickerOpen(!listPickerOpen);
+                  }}
+                  tabIndex={showMenuToggle ? 0 : -1}
+                >
+                  {selectedListId
+                    ? customLists.find((l) => l.id === selectedListId)?.name ?? "Inbox"
+                    : "Inbox"}
+                  <Icon name="chevron-down" size={12} />
+                </button>
+                {listPickerOpen && (
+                  <div className="list-picker-menu">
+                    <button
+                      className={!selectedListId ? "active" : ""}
+                      onClick={() => {
+                        setSelectedListId(undefined);
+                        setListPickerOpen(false);
+                      }}
+                    >
+                      Inbox
+                    </button>
+                    {customLists.map((cl) => (
+                      <button
+                        key={cl.id}
+                        className={selectedListId === cl.id ? "active" : ""}
+                        onClick={() => {
+                          setSelectedListId(cl.id);
+                          setListPickerOpen(false);
+                        }}
+                      >
+                        {cl.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               className={`due-today${showMenuToggle ? "" : " hidden-control"}`}
@@ -1122,6 +1481,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             )}
         </div>
       </div>
+
     </div>
   );
 };
