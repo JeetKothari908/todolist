@@ -4,7 +4,9 @@ Basic web extension for google chrome that changes your default new tab to have 
 
 This is a Chrome extension built on top of [Tabliss](https://tabliss.io), a customizable New Tab page. It replaces your default new tab with a beautiful dashboard featuring a background wallpaper, search bar, clock, optional quotes, and most importantly, a full-featured task manager.
 
-The project is built with **React 18**, **TypeScript**, and **Sass**, bundled with **Webpack**. It uses a plugin architecture where backgrounds and widgets are modular and can be added or removed. All user data is persisted to the browser's sync storage via a custom IndexedDB-backed reactive database.
+The project is built with **React 18**, **TypeScript**, and **Sass**, bundled with **Webpack**. It uses a plugin architecture where backgrounds and widgets are modular and can be added or removed. All user data is persisted locally to the browser's storage via a custom IndexedDB-backed reactive database.
+
+This project is open source under the [GPL-3.0 license](tabliss-main/LICENSE.txt), based on [Tabliss](https://github.com/joelshepherd/tabliss) by Joel Shepherd.
 
 ### Build & Run
 
@@ -48,7 +50,7 @@ Each task is stored as a flat object:
 | `repeat` | `Repeat?` | Optional recurring schedule (daily, weekly, or custom days) |
 | `parentId` | `string?` | Links a completed repeat instance back to its parent task |
 
-All tasks are stored as a single flat array and persisted automatically to the browser's sync storage via the `useSavedReducer` hook, which wraps React's `useReducer` and saves on every state change.
+All tasks are stored as a single flat array and persisted automatically to the browser's local storage via the `useSavedReducer` hook, which wraps React's `useReducer` and saves on every state change.
 
 ### Task Lifecycle
 
@@ -112,4 +114,36 @@ The task list uses a reducer pattern with the following actions:
 | `src/hooks/useSavedReducer.ts` | Hook that auto-persists reducer state to the database |
 | `src/db/state.ts` | Database schema and default widget configuration |
 | `src/db/action.ts` | Database-level actions (add/remove/reorder widgets) |
+
+---
+
+## Privacy Policy
+
+**Effective Date:** February 24, 2026
+
+This extension ("To Do List") does not collect, transmit, or store any personal data on external servers. All user data — including tasks, settings, and preferences — is stored locally in your browser using browser storage APIs (IndexedDB and Chrome sync storage). No data is sent to any third party, and no analytics or tracking of any kind is used.
+
+**Data stored locally includes:**
+- Your task list (task text, due dates, repeat schedules, completion status)
+- Your settings (background preference, language, time zone, widget toggles)
+
+**Data NOT collected:**
+- No personal information (name, email, location, etc.)
+- No browsing history or activity
+- No analytics, telemetry, or usage data
+- No cookies or tracking identifiers
+
+**Third-party services:** This extension does not communicate with any external servers or third-party services.
+
+**Data deletion:** You can delete all stored data at any time by resetting your settings within the extension or by uninstalling the extension from your browser.
+
+**Contact:** If you have questions about this privacy policy, please open an issue on the [GitHub repository](https://github.com/jeetd/todolist), or use our google form: https://forms.gle/V673yFrDCr3jzjoG9. 
+
+---
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0](tabliss-main/LICENSE.txt).
+
+Based on [Tabliss](https://tabliss.io) by [Joel Shepherd](https://github.com/joelshepherd/tabliss).
 
