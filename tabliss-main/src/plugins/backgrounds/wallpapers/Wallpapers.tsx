@@ -3,26 +3,54 @@ import { useTime } from "../../../hooks";
 import Backdrop from "../../../views/shared/Backdrop";
 import "./Wallpapers.sass";
 
-import wallpaper1 from "../../../assets/wallpapers/105306-brown_and_white_concrete_building-2560x1440.jpg";
-import wallpaper2 from "../../../assets/wallpapers/127252-white_concrete_bridge_over_blue_sea_during_daytime-2560x1440.jpg";
-import wallpaper3 from "../../../assets/wallpapers/148905-brown_and_white_concrete_houses_during_daytime-2560x1440.jpg";
-import wallpaper4 from "../../../assets/wallpapers/149363-lighted_bridge_during_night_time-2560x1440.jpg";
-import wallpaper5 from "../../../assets/wallpapers/150994-white_and_black_temple_under_blue_sky_during_daytime-2560x1440.jpg";
-import wallpaper6 from "../../../assets/wallpapers/155563-stockholm-car_rental-city-water-building-2560x1440.jpg";
-import wallpaper7 from "../../../assets/wallpapers/162355-szchenyi_chain_bridge-body_of_water-bridge-water-water_resources-2560x1440.jpg";
-import wallpaper8 from "../../../assets/wallpapers/165485-taj_mahal-agra_fort-yamuna_river-new7wonders_of_the_world-monument-2560x1440.jpg";
-import wallpaper9 from "../../../assets/wallpapers/172074-eiffel_tower-les_invalides-arc_de_triomphe-montparnasse-tower-2560x1440.jpg";
-import wallpaper10 from "../../../assets/wallpapers/172325-golden_gate_bridge-muir_woods_national_monument-recreation-travel-landmark-2560x1440.jpg";
-import wallpaper11 from "../../../assets/wallpapers/175872-chinese_architecture-leipzig-architecture-cloud-daytime-2560x1440.jpg";
-import wallpaper12 from "../../../assets/wallpapers/179483-building-carterton-property-property_investment-house-2560x1440.jpg";
-import wallpaper13 from "../../../assets/wallpapers/85821-city_skyline_during_night_time-2560x1440.jpg";
-import wallpaper14 from "../../../assets/wallpapers/90846-aerial_view_of_city_buildings_during_night_time-2560x1440.jpg";
-import wallpaper15 from "../../../assets/wallpapers/90887-aerial_view_of_city_buildings_during_daytime-2560x1440.jpg";
-import wallpaper16 from "../../../assets/wallpapers/91694-white_and_gray_concrete_castle_on_top_of_green_mountain_during_daytime-2560x1440.jpg";
-import wallpaper17 from "../../../assets/wallpapers/92499-bridge_over_river_during_night_time-2560x1440.jpg";
-import wallpaper18 from "../../../assets/wallpapers/92602-brown_concrete_building_near_river_under_blue_sky_during_daytime-2560x1440.jpg";
-import wallpaper19 from "../../../assets/wallpapers/92709-people_walking_on_snow_covered_ground_near_white_and_black_concrete_building_during_daytime-2560x1440.jpg";
-import wallpaper20 from "../../../assets/wallpapers/93819-london_bridge-sky-arch_bridge-tower_of_london-cable_stayed_bridge-2560x1440.jpg";
+// All wallpapers sourced from Unsplash (https://unsplash.com)
+// Unsplash License: free for commercial and non-commercial use
+
+// Architecture & Buildings
+import wallpaper1 from "../../../assets/wallpapers/unsplash-architecture-modern-building-2560x1440.jpg";
+import wallpaper2 from "../../../assets/wallpapers/unsplash-architecture-glass-skyscraper-2560x1440.jpg";
+import wallpaper3 from "../../../assets/wallpapers/unsplash-architecture-white-concrete-2560x1440.jpg";
+import wallpaper4 from "../../../assets/wallpapers/unsplash-architecture-cathedral-interior-2560x1440.jpg";
+
+// Bridges
+import wallpaper5 from "../../../assets/wallpapers/unsplash-bridge-golden-gate-fog-2560x1440.jpg";
+import wallpaper6 from "../../../assets/wallpapers/unsplash-bridge-suspension-night-2560x1440.jpg";
+import wallpaper7 from "../../../assets/wallpapers/unsplash-bridge-old-stone-2560x1440.jpg";
+
+// City Skylines
+import wallpaper8 from "../../../assets/wallpapers/unsplash-city-skyline-sunset-2560x1440.jpg";
+import wallpaper9 from "../../../assets/wallpapers/unsplash-city-skyline-night-lights-2560x1440.jpg";
+import wallpaper10 from "../../../assets/wallpapers/unsplash-city-aerial-daytime-2560x1440.jpg";
+import wallpaper11 from "../../../assets/wallpapers/unsplash-city-downtown-evening-2560x1440.jpg";
+import wallpaper12 from "../../../assets/wallpapers/unsplash-city-waterfront-reflection-2560x1440.jpg";
+
+// Landmarks
+import wallpaper13 from "../../../assets/wallpapers/unsplash-landmark-eiffel-tower-2560x1440.jpg";
+import wallpaper14 from "../../../assets/wallpapers/unsplash-landmark-colosseum-2560x1440.jpg";
+import wallpaper15 from "../../../assets/wallpapers/unsplash-landmark-taj-mahal-2560x1440.jpg";
+import wallpaper16 from "../../../assets/wallpapers/unsplash-landmark-big-ben-2560x1440.jpg";
+
+// Nature & Scenic
+import wallpaper17 from "../../../assets/wallpapers/unsplash-nature-mountain-lake-2560x1440.jpg";
+import wallpaper18 from "../../../assets/wallpapers/unsplash-nature-forest-mist-2560x1440.jpg";
+import wallpaper19 from "../../../assets/wallpapers/unsplash-nature-ocean-coast-2560x1440.jpg";
+import wallpaper20 from "../../../assets/wallpapers/unsplash-nature-northern-lights-2560x1440.jpg";
+import wallpaper21 from "../../../assets/wallpapers/unsplash-nature-autumn-road-2560x1440.jpg";
+import wallpaper22 from "../../../assets/wallpapers/unsplash-nature-snowy-mountains-2560x1440.jpg";
+
+// Scenic / Travel
+import wallpaper23 from "../../../assets/wallpapers/unsplash-scenic-santorini-2560x1440.jpg";
+import wallpaper24 from "../../../assets/wallpapers/unsplash-scenic-venice-canal-2560x1440.jpg";
+import wallpaper25 from "../../../assets/wallpapers/unsplash-scenic-japanese-temple-2560x1440.jpg";
+import wallpaper26 from "../../../assets/wallpapers/unsplash-scenic-swiss-village-2560x1440.jpg";
+
+// Night / Moody
+import wallpaper27 from "../../../assets/wallpapers/unsplash-night-starry-sky-2560x1440.jpg";
+import wallpaper28 from "../../../assets/wallpapers/unsplash-night-city-rain-2560x1440.jpg";
+
+// Winter / Snow
+import wallpaper29 from "../../../assets/wallpapers/unsplash-winter-cabin-snow-2560x1440.jpg";
+import wallpaper30 from "../../../assets/wallpapers/unsplash-winter-frozen-lake-2560x1440.jpg";
 
 const wallpapers = [
   wallpaper1,
@@ -45,6 +73,16 @@ const wallpapers = [
   wallpaper18,
   wallpaper19,
   wallpaper20,
+  wallpaper21,
+  wallpaper22,
+  wallpaper23,
+  wallpaper24,
+  wallpaper25,
+  wallpaper26,
+  wallpaper27,
+  wallpaper28,
+  wallpaper29,
+  wallpaper30,
 ];
 
 const Wallpapers: React.FC = () => {
