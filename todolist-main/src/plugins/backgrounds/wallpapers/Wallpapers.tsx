@@ -35,7 +35,6 @@ import wallpaper17 from "../../../assets/wallpapers/unsplash-nature-mountain-lak
 import wallpaper18 from "../../../assets/wallpapers/unsplash-nature-forest-mist-2560x1440.jpg";
 import wallpaper19 from "../../../assets/wallpapers/unsplash-nature-ocean-coast-2560x1440.jpg";
 import wallpaper20 from "../../../assets/wallpapers/unsplash-nature-northern-lights-2560x1440.jpg";
-import wallpaper21 from "../../../assets/wallpapers/unsplash-nature-autumn-road-2560x1440.jpg";
 import wallpaper22 from "../../../assets/wallpapers/unsplash-nature-snowy-mountains-2560x1440.jpg";
 
 // Scenic / Travel
@@ -73,7 +72,6 @@ const wallpapers = [
   wallpaper18,
   wallpaper19,
   wallpaper20,
-  wallpaper21,
   wallpaper22,
   wallpaper23,
   wallpaper24,
@@ -87,9 +85,20 @@ const wallpapers = [
 
 const Wallpapers: React.FC = () => {
   const time = useTime("absolute");
+  const validWallpapers = wallpapers.filter(Boolean);
+
+  if (validWallpapers.length === 0) {
+    return (
+      <Backdrop
+        className="Wallpapers fullscreen"
+        style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e)" }}
+      />
+    );
+  }
+
   const dayIndex = Math.floor(time.getTime() / (24 * 60 * 60 * 1000));
-  const index = dayIndex % wallpapers.length;
-  const url = wallpapers[index];
+  const index = dayIndex % validWallpapers.length;
+  const url = validWallpapers[index];
 
   return (
     <Backdrop
