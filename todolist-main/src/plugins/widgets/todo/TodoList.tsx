@@ -21,10 +21,13 @@ const TodoList: FC<Props> = ({
   onCompleteTask,
   onUpdate,
   onRemove,
-  show = 0,
-}) => (
+  show,
+}) => {
+  const visible =
+    show === undefined ? items : show <= 0 ? [] : items.slice(-show);
+  return (
   <div className="TodoList">
-    {items.slice(-show).map((item) => (
+    {visible.map((item) => (
       <TodoItem
         key={item.id}
         item={item}
@@ -36,6 +39,7 @@ const TodoList: FC<Props> = ({
       />
     ))}
   </div>
-);
+  );
+};
 
 export default TodoList;

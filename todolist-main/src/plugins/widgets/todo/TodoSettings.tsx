@@ -53,9 +53,16 @@ const TodoSettings: FC<Props> = ({ data = defaultData, setData }) => {
         <input
           type="number"
           min="0"
-          onChange={(event) =>
-            setData({ ...data, show: Number(event.target.value) })
-          }
+          onChange={(event) => {
+            const raw = event.target.value;
+            if (raw === "") {
+              setData({ ...data, show: defaultData.show });
+              return;
+            }
+            const parsed = Number(raw);
+            if (!Number.isFinite(parsed)) return;
+            setData({ ...data, show: Math.max(0, Math.floor(parsed)) });
+          }}
           placeholder="Number of todo items to show"
           value={data.show}
         />

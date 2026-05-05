@@ -71,12 +71,14 @@ export function reducer(state: State, action: Action) {
     case "COMPLETE_REPEAT_INSTANCE": {
       const parent = state.find((todo) => todo.id === action.data.parentId);
       if (!parent) return state;
+      // Note: the instance does NOT carry the parent's `repeat`. The instance is a
+      // frozen completion record — re-evaluating it against repeat schedules would
+      // make it re-appear as a recurring task in its own right.
       const instance = {
         id: action.data.instanceId,
         contents: parent.contents,
         completed: true,
         dueDate: action.data.instanceDueDate,
-        repeat: parent.repeat,
         parentId: action.data.parentId,
         listId: parent.listId,
       };

@@ -18,6 +18,14 @@ const TodoItem: FC<Props> = ({ item, onDelete, onUpdate, onToggle, onCompleteIns
   const ref = useRef<HTMLSpanElement>(null);
   const [showMenu, setShowMenu] = useState(false);
 
+  // Flush any pending contentEditable text (since the action buttons don't necessarily
+  // steal focus from the span, onBlur may not fire on its own).
+  const commitPendingEdit = () => {
+    if (ref.current && ref.current.innerText !== item.contents) {
+      onUpdate(ref.current.innerText);
+    }
+  };
+
   useLayoutEffect(() => {
     if (ref.current) {
       ref.current.innerText = item.contents;
@@ -67,26 +75,26 @@ const TodoItem: FC<Props> = ({ item, onDelete, onUpdate, onToggle, onCompleteIns
       />
 
       <div className="controls">
-        <a 
-          onMouseDown={(e) => {
-            e.preventDefault();
+        <a
+          onClick={() => {
+            commitPendingEdit();
             if (item.repeat && !item.completed) {
               setShowMenu(true);
             } else {
               onToggle();
               setShowMenu(false);
             }
-          }} 
+          }}
           className="complete"
         >
           <Icon name={item.completed ? "check-circle" : "circle"} />
         </a>
-        
+
         {showMenu && item.repeat && !item.completed && (
           <div className="repeatMenu">
             <button
-              onMouseDown={(e) => {
-                e.preventDefault();
+              onClick={() => {
+                commitPendingEdit();
                 onCompleteInstance();
                 setShowMenu(false);
               }}
@@ -94,8 +102,8 @@ const TodoItem: FC<Props> = ({ item, onDelete, onUpdate, onToggle, onCompleteIns
               Completed This Instance
             </button>
             <button
-              onMouseDown={(e) => {
-                e.preventDefault();
+              onClick={() => {
+                commitPendingEdit();
                 onCompleteTask();
                 setShowMenu(false);
               }}
@@ -105,7 +113,7 @@ const TodoItem: FC<Props> = ({ item, onDelete, onUpdate, onToggle, onCompleteIns
           </div>
         )}
 
-        <a onMouseDown={onDelete} className="delete">
+        <a onClick={onDelete} className="delete">
           <RemoveIcon />
         </a>
       </div>

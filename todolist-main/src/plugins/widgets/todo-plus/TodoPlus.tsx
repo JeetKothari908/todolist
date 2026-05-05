@@ -222,18 +222,34 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const todayYmd = getYmd(today);
   const todayDay = today.getDay();
 
-  // Auto-dismiss completed items from the "due today" list at the start of each new day
+  // Latest items/data refs so the daily-clear effect doesn't read stale values
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
+  // Auto-dismiss completed items from the "due today" list at the start of each new day.
+  // The lastClearedDate write is deferred to a setTimeout so it fires AFTER the reducer's
+  // items-save effect has propagated through setData; otherwise the two setData calls
+  // (which both spread `data` whole) race and the later one drops the dismissed items.
   useEffect(() => {
-    if (data.lastClearedDate === todayYmd) return;
-    const toClear = items.filter(
+    if (dataRef.current.lastClearedDate === todayYmd) return;
+    const toClear = itemsRef.current.filter(
       (item) =>
         !item.dismissed &&
         item.completed &&
         item.dueDate &&
         item.dueDate < todayYmd,
     );
+    if (toClear.length === 0) {
+      setData({ ...dataRef.current, lastClearedDate: todayYmd });
+      return;
+    }
     toClear.forEach((item) => dispatch(dismissTodo(item.id)));
-    setData({ ...data, lastClearedDate: todayYmd });
+    const handle = setTimeout(() => {
+      setData({ ...dataRef.current, lastClearedDate: todayYmd });
+    }, 0);
+    return () => clearTimeout(handle);
   }, [todayYmd]);
 
   const repeat: Repeat | undefined = useMemo(() => {
@@ -324,16 +340,28 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
 
   const deleteList = (listId: string) => {
     // Move all tasks in the deleted list back to inbox
-    items.forEach((item) => {
-      if (item.listId === listId) dispatch(moveTodo(item.id, undefined));
-    });
-    setData({
-      ...data,
-      customLists: customLists.filter((l) => l.id !== listId),
-    });
-    // Reset views if they were showing the deleted list
+    const affected = items.filter((item) => item.listId === listId);
+    affected.forEach((item) => dispatch(moveTodo(item.id, undefined)));
+    // Defer the customLists update so it fires after the reducer's items-save
+    // setData has propagated; otherwise it would race and clobber the moveTodo
+    // results (both setData calls spread `data` whole and the later one wins).
+    const writeLists = () => {
+      setData({
+        ...dataRef.current,
+        customLists: (dataRef.current.customLists ?? []).filter(
+          (l) => l.id !== listId,
+        ),
+      });
+    };
+    if (affected.length === 0) {
+      writeLists();
+    } else {
+      setTimeout(writeLists, 0);
+    }
+    // Reset views/selection if they were pointing at the deleted list
     if (dueView === listId) setDueView("today");
     if (inboxView === listId) setInboxView("inbox");
+    if (selectedListId === listId) setSelectedListId(undefined);
   };
 
   const startAddList = (panel: "due" | "inbox") => {
@@ -482,8 +510,14 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     ? "Inbox"
     : customLists.find((l) => l.id === inboxView)?.name ?? "Unknown List";
 
-  const removeCompleted = (list: State) => {
-    list.filter((item) => item.completed).forEach((item) => {
+  // In the Finished view every item is dismissed (and "finished" is what the user
+  // sees), so remove the dismissed ones. Elsewhere "Remove Finished Items" means
+  // the completed ones in that view.
+  const removeCompleted = (list: State, finishedView = false) => {
+    const predicate = finishedView
+      ? (item: State[number]) => item.dismissed
+      : (item: State[number]) => item.completed;
+    list.filter(predicate).forEach((item) => {
       dispatch(removeTodo(item.id));
     });
   };
@@ -1154,7 +1188,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             <button
               onClick={() => {
                 activeListRef.current = 0;
-                removeCompleted(dueList);
+                removeCompleted(dueList, dueView === "finished");
                 closeAllMenus();
               }}
             >
