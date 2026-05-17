@@ -25,6 +25,8 @@ export const setBackground = (key: string): void => {
 
 /** Add a new widget */
 export const addWidget = (key: string): void => {
+  removeMutuallyExclusiveWidgets(key);
+
   const id = createId();
   const widgets = selectWidgets();
   const order = widgets.length > 0 ? widgets[widgets.length - 1].order + 1 : 0;
@@ -38,11 +40,25 @@ export const addWidget = (key: string): void => {
 
 const defaultWidgetPosition = (key: string): WidgetPosition => {
   switch (key) {
+    case "widget/notes":
+    case "widget/planOfDay":
+      return "middleLeft";
     case "widget/todo":
       return "bottomRight";
     default:
       return "middleCentre";
   }
+};
+
+const exclusiveWidgetGroups = [["widget/notes", "widget/planOfDay"]];
+
+const removeMutuallyExclusiveWidgets = (key: string): void => {
+  const group = exclusiveWidgetGroups.find((keys) => keys.includes(key));
+  if (!group) return;
+
+  selectWidgets()
+    .filter((widget) => group.includes(widget.key) && widget.key !== key)
+    .forEach((widget) => removeWidget(widget.id));
 };
 
 /** Remove a widget */

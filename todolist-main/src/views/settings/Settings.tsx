@@ -1,10 +1,11 @@
 import React from "react";
 import { FormattedMessage } from "react-intl";
 import { UiContext } from "../../contexts/ui";
-import { exportStore, importStore, resetStore } from "../../db/action";
+import { addWidget, exportStore, importStore, removeWidget, resetStore } from "../../db/action";
+import { selectWidgets } from "../../db/select";
 import { db } from "../../db/state";
 import { useKeyPress } from "../../hooks";
-import { useKey } from "../../lib/db/react";
+import { useKey, useSelector } from "../../lib/db/react";
 import Background from "./Background";
 import "./Settings.sass";
 import System from "./System";
@@ -12,6 +13,17 @@ import System from "./System";
 const Settings: React.FC = () => {
   const { toggleSettings } = React.useContext(UiContext);
   const [showQuotes, setShowQuotes] = useKey(db, "showQuotes");
+  const widgets = useSelector(db, selectWidgets);
+  const notesWidget = widgets.find((widget) => widget.key === "widget/notes");
+  const planWidget = widgets.find(
+    (widget) => widget.key === "widget/planOfDay",
+  );
+
+  const toggleWidget = (key: string, enabled: boolean) => {
+    const existing = widgets.find((widget) => widget.key === key);
+    if (enabled && !existing) addWidget(key);
+    if (!enabled && existing) removeWidget(existing.id);
+  };
 
   const handleReset = () => {
     if (
@@ -87,6 +99,26 @@ const Settings: React.FC = () => {
             onChange={() => setShowQuotes(!showQuotes)}
           />
           Quotes
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={!!notesWidget}
+            onChange={(event) =>
+              toggleWidget("widget/notes", event.target.checked)
+            }
+          />
+          Notes
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={!!planWidget}
+            onChange={(event) =>
+              toggleWidget("widget/planOfDay", event.target.checked)
+            }
+          />
+          Plan of the Day
         </label>
 
         <p style={{ marginBottom: "2rem" }}>

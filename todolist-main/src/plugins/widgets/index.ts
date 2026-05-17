@@ -4,6 +4,7 @@ import js from "./js";
 import links from "./links";
 import message from "./message";
 import notes from "./notes";
+import planOfDay from "./planOfDay";
 import quote from "./quote";
 import search from "./search";
 import time from "./time";
@@ -16,6 +17,7 @@ export const widgetConfigs = [
   links,
   message,
   notes,
+  planOfDay,
   time,
   search,
   quote,
