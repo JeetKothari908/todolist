@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "incremental": true,
-    "module": "commonjs",
+    "module": "node16",
     "outDir": "dist/test"
   },
   "exclude": []

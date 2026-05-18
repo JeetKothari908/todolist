@@ -110,34 +110,109 @@ export const extension = async (
   const handleError = (message: string) => (err: unknown) => {
     Stream.publish(errors, mapError(message, err));
   };
+  const write = createExtensionWriter(area);
   DB.listen(
     db,
-    batch((changes) => {
-      if (DEV) console.log("Storage: saving changes:", changes);
+    batch(
+      (changes) => {
+        if (DEV) console.log("Storage: saving changes:", changes);
 
-      // TODO: test for both updates and deletes for the same key
-      // TODO: iterator helpers
-      const changesArray = Array.from(changes);
-      const updates = Object.fromEntries(
-        changesArray
-          .filter(([, val]) => val !== undefined)
-          .map(([key, val]) => [`${name}/${key}`, val]),
-      );
-      const deletes = changesArray
-        .filter(([, val]) => val === undefined)
-        .map(([key]) => `${name}/${key}`);
+        // TODO: test for both updates and deletes for the same key
+        // TODO: iterator helpers
+        const changesArray = Array.from(changes);
+        const updates = Object.fromEntries(
+          changesArray
+            .filter(([, val]) => val !== undefined)
+            .map(([key, val]) => [`${name}/${key}`, val]),
+        );
+        const deletes = changesArray
+          .filter(([, val]) => val === undefined)
+          .map(([key]) => `${name}/${key}`);
 
-      storageArea
-        .set(updates)
-        .catch(handleError("Cannot write updates to storage"));
-      storageArea
-        .remove(deletes)
-        .catch(handleError("Cannot write deletes to storage"));
-    }),
+        if (Object.keys(updates).length > 0)
+          write(
+            () => storageArea.set(updates),
+            handleError("Cannot write updates to storage"),
+          );
+        if (deletes.length > 0)
+          write(
+            () => storageArea.remove(deletes),
+            handleError("Cannot write deletes to storage"),
+          );
+      },
+      area === "sync" ? syncBatchTimeout : 0,
+    ),
   );
 
   return errors;
 };
+
+/** Web Extension local storage provider with one-time sync import */
+export const extensionLocal = async (
+  db: DB.Database,
+  name: string,
+): Promise<Stream.Stream<StorageError>> => {
+  const localStored = await browser.storage.local.get();
+  const localHasConfig = Object.keys(localStored).some((key) =>
+    key.startsWith(name),
+  );
+
+  if (!localHasConfig) {
+    const syncStored = await browser.storage.sync.get();
+    const syncConfig = Object.fromEntries(
+      Object.entries(syncStored).filter(([key]) => key.startsWith(name)),
+    );
+    if (Object.keys(syncConfig).length > 0)
+      await browser.storage.local.set(syncConfig);
+  }
+
+  return extension(db, name, "local");
+};
+
+const syncBatchTimeout = 1500;
+const syncWriteInterval = 3000;
+const syncQuotaRetryTimeout = 60 * 1000;
+
+const createExtensionWriter = (area: "local" | "sync" | "managed") => {
+  if (area !== "sync")
+    return (
+      write: () => Promise<unknown>,
+      handleError: (err: unknown) => void,
+    ) => write().catch(handleError);
+
+  let queue = Promise.resolve();
+  let lastWrite = 0;
+
+  return (
+    write: () => Promise<unknown>,
+    handleError: (err: unknown) => void,
+  ): void => {
+    const run = async (): Promise<void> => {
+      const wait = Math.max(0, lastWrite + syncWriteInterval - Date.now());
+      if (wait) await delay(wait);
+
+      try {
+        await write();
+        lastWrite = Date.now();
+      } catch (error) {
+        if (isSyncQuotaError(error)) {
+          await delay(syncQuotaRetryTimeout);
+          return run();
+        }
+        throw error;
+      }
+    };
+
+    queue = queue.then(run, run).catch(handleError);
+  };
+};
+
+const isSyncQuotaError = (error: unknown): boolean =>
+  error instanceof Error &&
+  error.message.includes("MAX_WRITE_OPERATIONS_PER_MINUTE");
+
+const delay = (timeout: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, timeout));
 
 const batch = (
   flush: (batch: Iterable<DB.Change>) => void,
