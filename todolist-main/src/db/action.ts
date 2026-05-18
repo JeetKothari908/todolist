@@ -27,7 +27,7 @@ export const setBackground = (key: string): void => {
 export const addWidget = (key: string): void => {
   removeMutuallyExclusiveWidgets(key);
 
-  const id = createId();
+  const id = singletonWidgetId(key) ?? createId();
   const widgets = selectWidgets();
   const order = widgets.length > 0 ? widgets[widgets.length - 1].order + 1 : 0;
   DB.put(db, `widget/${id}`, {
@@ -52,6 +52,17 @@ const defaultWidgetPosition = (key: string): WidgetPosition => {
 
 const exclusiveWidgetGroups = [["widget/notes", "widget/planOfDay"]];
 
+const singletonWidgetId = (key: string): string | null => {
+  switch (key) {
+    case "widget/notes":
+      return "default-notes";
+    case "widget/planOfDay":
+      return "default-plan-of-day";
+    default:
+      return null;
+  }
+};
+
 const removeMutuallyExclusiveWidgets = (key: string): void => {
   const group = exclusiveWidgetGroups.find((keys) => keys.includes(key));
   if (!group) return;
@@ -63,7 +74,9 @@ const removeMutuallyExclusiveWidgets = (key: string): void => {
 
 /** Remove a widget */
 export const removeWidget = (id: string): void => {
+  const widget = DB.get(db, `widget/${id}`);
   DB.put(db, `widget/${id}`, null);
+  if (widget && singletonWidgetId(widget.key)) return;
   DB.del(db, `data/${id}`);
   DB.del(cache, id);
 };

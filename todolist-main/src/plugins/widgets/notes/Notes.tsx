@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { API } from "../../types";
 import { Data, defaultData, Item } from "./data";
 import { Icon } from "../../../views/shared";
@@ -15,6 +15,7 @@ import "./Notes.sass";
 
 export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
   const normalized = useMemo(() => normalizeData(data), [data]);
+  const noteTitleRef = useRef<HTMLTextAreaElement>(null);
   const noteBodyRef = useRef<HTMLTextAreaElement>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -48,6 +49,28 @@ export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
     selectedNote && selectedNote.type === "note"
       ? splitNoteContents(selectedNote.contents).body
       : "";
+
+  useLayoutEffect(() => {
+    resizeTitle();
+  }, [noteTitle]);
+
+  useLayoutEffect(() => {
+    resizeBody();
+  }, [noteBody]);
+
+  const resizeTitle = () => {
+    const title = noteTitleRef.current;
+    if (!title) return;
+    title.style.height = "auto";
+    title.style.height = `${title.scrollHeight}px`;
+  };
+
+  const resizeBody = () => {
+    const body = noteBodyRef.current;
+    if (!body) return;
+    body.style.height = "auto";
+    body.style.height = `${body.scrollHeight}px`;
+  };
 
   const getDisplayName = (item: Item) => {
     if (item.type === "folder") return item.name;
@@ -197,11 +220,16 @@ export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
               </button>
             </div>
             <>
-              <input
+              <textarea
+                ref={noteTitleRef}
                 className="note-title"
                 value={noteTitle}
                 placeholder="Untitled Note"
-                onChange={(event) => updateNoteTitle(event.target.value)}
+                rows={1}
+                onChange={(event) => {
+                  updateNoteTitle(event.target.value.replace(/\n/g, " "));
+                  requestAnimationFrame(resizeTitle);
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
@@ -213,7 +241,10 @@ export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
               <textarea
                 ref={noteBodyRef}
                 value={noteBody}
-                onChange={(event) => updateNoteBody(event.target.value)}
+                onChange={(event) => {
+                  updateNoteBody(event.target.value);
+                  requestAnimationFrame(resizeBody);
+                }}
                 spellCheck={true}
               />
             </>
