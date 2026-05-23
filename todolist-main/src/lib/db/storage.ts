@@ -243,7 +243,9 @@ export const remoteSync = async (
       });
     }
   } catch (error) {
-    Stream.publish(errors, mapError("Cannot sync initial snapshot", error));
+    const syncError = mapError("Cannot sync initial snapshot", error);
+    console.error(syncError);
+    setTimeout(() => Stream.publish(errors, syncError), 0);
   }
 
   DB.listen(

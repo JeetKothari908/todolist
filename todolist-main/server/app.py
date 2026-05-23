@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 
@@ -12,6 +13,12 @@ DB_PATH = os.getenv("TODOLIST_DB", "todolist.sqlite3")
 AUTH_TOKEN = os.getenv("TODOLIST_TOKEN", "")
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["authorization", "content-type"],
+)
 
 
 def connect() -> sqlite3.Connection:
