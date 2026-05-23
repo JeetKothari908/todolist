@@ -169,9 +169,108 @@ export const extensionLocal = async (
   return extension(db, name, "local");
 };
 
+export interface RemoteSyncOptions {
+  url: string;
+  token?: string;
+}
+
+interface RemoteSnapshot {
+  changes: RemoteChange[];
+}
+
+interface RemoteChange {
+  key: string;
+  value?: unknown;
+  deleted?: boolean;
+}
+
+/** Remote HTTP sync provider */
+export const remoteSync = async (
+  db: DB.Database,
+  name: string,
+  options: RemoteSyncOptions,
+): Promise<Stream.Stream<StorageError>> => {
+  const baseUrl = options.url.replace(/\/$/, "");
+  const errors = Stream.init<StorageError>();
+
+  const mapError = (message: string, err: unknown) =>
+    new StorageError(`Remote sync: ${name}: ${message}`, {
+      cause: err instanceof Error ? err : undefined,
+    });
+  const storePath = name.split("/").map(encodeURIComponent).join("/");
+
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (options.token) headers.authorization = `Bearer ${options.token}`;
+
+  const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
+    const res = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: {
+        ...headers,
+        ...init?.headers,
+      },
+    });
+
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.json();
+  };
+
+  try {
+    const snapshot = await request<RemoteSnapshot>(
+      `/v1/stores/${storePath}`,
+    );
+
+    if (snapshot.changes.length === 0) {
+      const seedChanges: RemoteChange[] = [];
+      for (const [key, value] of db) {
+        if (value !== undefined) seedChanges.push({ key, value });
+      }
+
+      await request(`/v1/stores/${storePath}/changes`, {
+        method: "POST",
+        body: JSON.stringify({
+          changes: seedChanges,
+        }),
+      });
+    } else {
+      DB.atomic(db, (trx) => {
+        for (const change of snapshot.changes) {
+          if (change.deleted) DB.del(trx, change.key);
+          else DB.put(trx, change.key, change.value);
+        }
+      });
+    }
+  } catch (error) {
+    Stream.publish(errors, mapError("Cannot sync initial snapshot", error));
+  }
+
+  DB.listen(
+    db,
+    batch((changes) => {
+      const body = {
+        changes: Array.from(changes).map(([key, value]) =>
+          value === undefined ? { key, deleted: true } : { key, value },
+        ),
+      };
+
+      request(`/v1/stores/${storePath}/changes`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }).catch((error) =>
+        Stream.publish(errors, mapError("Cannot push local changes", error)),
+      );
+    }, remoteSyncBatchTimeout),
+  );
+
+  return errors;
+};
+
 const syncBatchTimeout = 1500;
 const syncWriteInterval = 3000;
 const syncQuotaRetryTimeout = 60 * 1000;
+const remoteSyncBatchTimeout = 1000;
 
 const createExtensionWriter = (area: "local" | "sync" | "managed") => {
   if (area !== "sync")

@@ -1,4 +1,4 @@
-import { DB, Storage } from "../lib";
+import { DB, Storage, Stream } from "../lib";
 import { defaultLocale } from "../locales";
 
 /**
@@ -113,10 +113,25 @@ export const db = DB.init<State>(initData);
 export const cache = DB.init<Record<string, unknown | undefined>>();
 
 // Persist data
-export const dbStorage =
+const localDbStorage =
   BUILD_TARGET === "web"
     ? Storage.indexeddb(db, "tabliss/config")
     : Storage.extensionLocal(db, "tabliss/config");
+
+export const dbStorage = localDbStorage.then(async (localErrors) => {
+  if (!SYNC_SERVER_URL) return localErrors;
+
+  const remoteErrors = await Storage.remoteSync(db, "tabliss/config", {
+    url: SYNC_SERVER_URL,
+    token: SYNC_AUTH_TOKEN || undefined,
+  });
+  const errors = Stream.init<Error>();
+
+  Stream.subscribe(localErrors, (error) => Stream.publish(errors, error));
+  Stream.subscribe(remoteErrors, (error) => Stream.publish(errors, error));
+
+  return errors;
+});
 
 export const cacheStorage =
   BUILD_TARGET === "firefox"

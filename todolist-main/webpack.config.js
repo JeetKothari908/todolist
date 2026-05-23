@@ -86,6 +86,8 @@ const config = {
       BUILD_TARGET: JSON.stringify(buildTarget),
       DEV: JSON.stringify(!isProduction),
       GIPHY_API_KEY: JSON.stringify(process.env.GIPHY_API_KEY),
+      SYNC_AUTH_TOKEN: JSON.stringify(process.env.SYNC_AUTH_TOKEN || ""),
+      SYNC_SERVER_URL: JSON.stringify(process.env.SYNC_SERVER_URL || ""),
       VERSION: JSON.stringify(version),
       UNSPLASH_API_KEY: JSON.stringify(process.env.UNSPLASH_API_KEY),
     }),
