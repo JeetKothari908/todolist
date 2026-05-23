@@ -119,7 +119,12 @@ const localDbStorage =
     : Storage.extensionLocal(db, "tabliss/config");
 
 export const dbStorage = localDbStorage.then(async (localErrors) => {
-  if (!SYNC_SERVER_URL) return localErrors;
+  if (!SYNC_SERVER_URL) {
+    console.info("[todo-sync] disabled: SYNC_SERVER_URL is empty");
+    return localErrors;
+  }
+
+  console.info("[todo-sync] enabled:", SYNC_SERVER_URL);
 
   const remoteErrors = await Storage.remoteSync(db, "tabliss/config", {
     url: SYNC_SERVER_URL,

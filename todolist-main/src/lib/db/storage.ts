@@ -205,6 +205,7 @@ export const remoteSync = async (
   if (options.token) headers.authorization = `Bearer ${options.token}`;
 
   const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
+    console.info("[todo-sync] request:", init?.method || "GET", path);
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {
@@ -218,9 +219,11 @@ export const remoteSync = async (
   };
 
   try {
+    console.info("[todo-sync] starting remote sync:", baseUrl);
     const snapshot = await request<RemoteSnapshot>(
       `/v1/stores/${storePath}`,
     );
+    console.info("[todo-sync] remote changes:", snapshot.changes.length);
 
     if (snapshot.changes.length === 0) {
       const seedChanges: RemoteChange[] = [];
@@ -234,6 +237,7 @@ export const remoteSync = async (
           changes: seedChanges,
         }),
       });
+      console.info("[todo-sync] seeded remote changes:", seedChanges.length);
     } else {
       DB.atomic(db, (trx) => {
         for (const change of snapshot.changes) {
@@ -256,6 +260,7 @@ export const remoteSync = async (
           value === undefined ? { key, deleted: true } : { key, value },
         ),
       };
+      console.info("[todo-sync] pushing local changes:", body.changes.length);
 
       request(`/v1/stores/${storePath}/changes`, {
         method: "POST",
