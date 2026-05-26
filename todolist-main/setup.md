@@ -19,6 +19,8 @@ If `.local` does not resolve, use the Pi's Tailscale name or IP from the Tailsca
 cd ~/todolist-sync/server
 source .venv/bin/activate
 export TODOLIST_TOKEN='jfiweokgerhotrwhtr'
+export TODOLIST_DB='todolist.sqlite3'
+export TODOLIST_HISTORY_DB='todolist_history.sqlite3'
 uvicorn app:app --host 127.0.0.1 --port 8787
 ```
 
@@ -36,9 +38,10 @@ tailscale serve status
 ```powershell
 curl.exe "https://raspberrypi.tail2db278.ts.net/health"
 curl.exe -H "Authorization: Bearer jfiweokgerhotrwhtr" "https://raspberrypi.tail2db278.ts.net/v1/stores/tabliss/config"
+curl.exe -H "Authorization: Bearer jfiweokgerhotrwhtr" "https://raspberrypi.tail2db278.ts.net/v1/history/summary"
 ```
 
-The health check should return `{"ok":true}`. The config endpoint should return JSON with a `changes` array.
+The health check should return `{"ok":true}`. The config endpoint should return JSON with a `changes` array. The history summary should return counts for `changes`, `tasks`, `notes`, and `plans`.
 
 ## Connect A New Computer
 
@@ -87,6 +90,28 @@ You can also verify the server received data:
 
 ```powershell
 curl.exe -H "Authorization: Bearer jfiweokgerhotrwhtr" "https://raspberrypi.tail2db278.ts.net/v1/stores/tabliss/config"
+curl.exe -H "Authorization: Bearer jfiweokgerhotrwhtr" "https://raspberrypi.tail2db278.ts.net/v1/history/summary"
+```
+
+## Check The History Database On The Pi
+
+The Pi now keeps two SQLite databases in `~/todolist-sync/server`:
+
+```text
+todolist.sqlite3
+todolist_history.sqlite3
+```
+
+`todolist.sqlite3` is the functional sync database used by the extension. `todolist_history.sqlite3` preserves every task, note, and plan-of-day payload the server has seen.
+
+Inspect recent saved history:
+
+```bash
+cd ~/todolist-sync/server
+sqlite3 todolist_history.sqlite3 ".tables"
+sqlite3 todolist_history.sqlite3 "select id, contents, first_seen_at, last_seen_at from tasks order by first_seen_at desc limit 10;"
+sqlite3 todolist_history.sqlite3 "select id, name, contents from notes order by first_seen_at desc limit 10;"
+sqlite3 todolist_history.sqlite3 "select plan_date, contents from plans order by plan_date desc limit 10;"
 ```
 
 ## Debugging
@@ -109,4 +134,3 @@ If Tailscale Serve stops working, rerun:
 sudo tailscale serve --https=443 http://127.0.0.1:8787
 tailscale serve status
 ```
-

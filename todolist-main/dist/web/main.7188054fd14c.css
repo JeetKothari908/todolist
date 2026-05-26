@@ -1,0 +1,395 @@
+/*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */
+
+/* Document
+   ========================================================================== */
+
+/**
+ * 1. Correct the line height in all browsers.
+ * 2. Prevent adjustments of font size after orientation changes in iOS.
+ */
+
+html {
+  line-height: 1.15; /* 1 */
+  -webkit-text-size-adjust: 100%; /* 2 */
+}
+
+/* Sections
+   ========================================================================== */
+
+/**
+ * Remove the margin in all browsers.
+ */
+
+body {
+  margin: 0;
+}
+
+/**
+ * Render the `main` element consistently in IE.
+ */
+
+main {
+  display: block;
+}
+
+/**
+ * Correct the font size and margin on `h1` elements within `section` and
+ * `article` contexts in Chrome, Firefox, and Safari.
+ */
+
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+
+/* Grouping content
+   ========================================================================== */
+
+/**
+ * 1. Add the correct box sizing in Firefox.
+ * 2. Show the overflow in Edge and IE.
+ */
+
+hr {
+  box-sizing: content-box; /* 1 */
+  height: 0; /* 1 */
+  overflow: visible; /* 2 */
+}
+
+/**
+ * 1. Correct the inheritance and scaling of font size in all browsers.
+ * 2. Correct the odd `em` font sizing in all browsers.
+ */
+
+pre {
+  font-family: monospace, monospace; /* 1 */
+  font-size: 1em; /* 2 */
+}
+
+/* Text-level semantics
+   ========================================================================== */
+
+/**
+ * Remove the gray background on active links in IE 10.
+ */
+
+a {
+  background-color: transparent;
+}
+
+/**
+ * 1. Remove the bottom border in Chrome 57-
+ * 2. Add the correct text decoration in Chrome, Edge, IE, Opera, and Safari.
+ */
+
+abbr[title] {
+  border-bottom: none; /* 1 */
+  text-decoration: underline; /* 2 */
+  text-decoration: underline dotted; /* 2 */
+}
+
+/**
+ * Add the correct font weight in Chrome, Edge, and Safari.
+ */
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+/**
+ * 1. Correct the inheritance and scaling of font size in all browsers.
+ * 2. Correct the odd `em` font sizing in all browsers.
+ */
+
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; /* 1 */
+  font-size: 1em; /* 2 */
+}
+
+/**
+ * Add the correct font size in all browsers.
+ */
+
+small {
+  font-size: 80%;
+}
+
+/**
+ * Prevent `sub` and `sup` elements from affecting the line height in
+ * all browsers.
+ */
+
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+/* Embedded content
+   ========================================================================== */
+
+/**
+ * Remove the border on images inside links in IE 10.
+ */
+
+img {
+  border-style: none;
+}
+
+/* Forms
+   ========================================================================== */
+
+/**
+ * 1. Change the font styles in all browsers.
+ * 2. Remove the margin in Firefox and Safari.
+ */
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; /* 1 */
+  font-size: 100%; /* 1 */
+  line-height: 1.15; /* 1 */
+  margin: 0; /* 2 */
+}
+
+/**
+ * Show the overflow in IE.
+ * 1. Show the overflow in Edge.
+ */
+
+button,
+input { /* 1 */
+  overflow: visible;
+}
+
+/**
+ * Remove the inheritance of text transform in Edge, Firefox, and IE.
+ * 1. Remove the inheritance of text transform in Firefox.
+ */
+
+button,
+select { /* 1 */
+  text-transform: none;
+}
+
+/**
+ * Correct the inability to style clickable types in iOS and Safari.
+ */
+
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+  -webkit-appearance: button;
+}
+
+/**
+ * Remove the inner border and padding in Firefox.
+ */
+
+button::-moz-focus-inner,
+[type="button"]::-moz-focus-inner,
+[type="reset"]::-moz-focus-inner,
+[type="submit"]::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+
+/**
+ * Restore the focus styles unset by the previous rule.
+ */
+
+button:-moz-focusring,
+[type="button"]:-moz-focusring,
+[type="reset"]:-moz-focusring,
+[type="submit"]:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+
+/**
+ * Correct the padding in Firefox.
+ */
+
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+
+/**
+ * 1. Correct the text wrapping in Edge and IE.
+ * 2. Correct the color inheritance from `fieldset` elements in IE.
+ * 3. Remove the padding so developers are not caught out when they zero out
+ *    `fieldset` elements in all browsers.
+ */
+
+legend {
+  box-sizing: border-box; /* 1 */
+  color: inherit; /* 2 */
+  display: table; /* 1 */
+  max-width: 100%; /* 1 */
+  padding: 0; /* 3 */
+  white-space: normal; /* 1 */
+}
+
+/**
+ * Add the correct vertical alignment in Chrome, Firefox, and Opera.
+ */
+
+progress {
+  vertical-align: baseline;
+}
+
+/**
+ * Remove the default vertical scrollbar in IE 10+.
+ */
+
+textarea {
+  overflow: auto;
+}
+
+/**
+ * 1. Add the correct box sizing in IE 10.
+ * 2. Remove the padding in IE 10.
+ */
+
+[type="checkbox"],
+[type="radio"] {
+  box-sizing: border-box; /* 1 */
+  padding: 0; /* 2 */
+}
+
+/**
+ * Correct the cursor style of increment and decrement buttons in Chrome.
+ */
+
+[type="number"]::-webkit-inner-spin-button,
+[type="number"]::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/**
+ * 1. Correct the odd appearance in Chrome and Safari.
+ * 2. Correct the outline style in Safari.
+ */
+
+[type="search"] {
+  -webkit-appearance: textfield; /* 1 */
+  outline-offset: -2px; /* 2 */
+}
+
+/**
+ * Remove the inner padding in Chrome and Safari on macOS.
+ */
+
+[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/**
+ * 1. Correct the inability to style clickable types in iOS and Safari.
+ * 2. Change font properties to `inherit` in Safari.
+ */
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button; /* 1 */
+  font: inherit; /* 2 */
+}
+
+/* Interactive
+   ========================================================================== */
+
+/*
+ * Add the correct display in Edge, IE 10+, and Firefox.
+ */
+
+details {
+  display: block;
+}
+
+/*
+ * Add the correct display in all browsers.
+ */
+
+summary {
+  display: list-item;
+}
+
+/* Misc
+   ========================================================================== */
+
+/**
+ * Add the correct display in IE 10+.
+ */
+
+template {
+  display: none;
+}
+
+/**
+ * Add the correct display in IE 10.
+ */
+
+[hidden] {
+  display: none;
+}
+
+*{box-sizing:border-box}html,body{font-family:-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI","Roboto","Helvetica Neue",Arial,sans-serif;font-size:14px;line-height:1.25;color:#5a636a}html{background-color:#000}@media(prefers-color-scheme: light){html{background-color:#fff}}html.theme-light{background-color:#fff}html.theme-dark{background-color:#000}a{color:#3498db;cursor:pointer;text-decoration:none}a:hover{text-decoration:underline}h1{font-size:4em;margin-bottom:0}h2{font-size:2em}h3{font-size:1.5em}h4{font-size:1.25em}h5{font-size:1em;margin:0}i{font-family:Arial,sans-serif;line-height:1;vertical-align:middle}i svg{height:1em;width:auto;overflow:visible !important}.text--grey{color:#bdc3c7}.fullscreen{position:absolute;top:0;left:0;width:100%;height:100%}
+.Image{background-position:50% 50%;background-size:cover}.Image.default{background-color:#212121}
+.ImageSettings .grid{display:grid;grid-template-columns:1fr 1fr;grid-gap:.5em}.ImageSettings .grid .preview{background-color:#bdc3c7;border-radius:.25em;position:relative;overflow:hidden}.ImageSettings .grid .preview img{display:block;max-width:100%;height:auto}.ImageSettings .grid .preview button{position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);opacity:0;transition:opacity .15s ease-out}.ImageSettings .grid .preview:hover button{opacity:1}
+.Wallpapers{background-position:50% 50%;background-size:cover}
+.Links{column-gap:1em;display:inline-grid}.Links a{display:block;margin:.25em;white-space:nowrap}.Links a:hover{text-decoration:none}.Links a:hover .LinkText{text-decoration:underline}.Links a img{height:1em}
+.Notes{width:520px;max-width:58vw;color:#1f1f1f;text-align:left;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif}.Notes .panel{display:grid;grid-template-columns:minmax(150px, 0.85fr) minmax(220px, 1.4fr);min-height:320px;max-height:min(520px,68vh);background:rgba(245,246,248,.93);border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.18);overflow:hidden;backdrop-filter:blur(6px)}.Notes .sidebar{min-width:0;border-right:1px solid rgba(0,0,0,.1);display:flex;flex-direction:column}.Notes .toolbar{display:flex;align-items:center;gap:4px;padding:10px;border-bottom:1px solid rgba(0,0,0,.08)}.Notes .toolbar button{border:0;background:rgba(0,0,0,0);color:#4a4a4a;cursor:pointer;min-width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;font:inherit}.Notes .toolbar button:first-child{justify-content:flex-start;flex:1;font-weight:600;color:#222}.Notes .toolbar button:hover{background:rgba(0,0,0,.08)}.Notes .path{display:flex;gap:4px;align-items:center;padding:8px 10px 4px;overflow-x:auto}.Notes .path button{flex:0 0 auto;border:0;background:rgba(0,0,0,0);color:#5a5a5a;cursor:pointer;font-size:12px;padding:3px 4px}.Notes .path button::after{content:"/";margin-left:6px;color:#9a9a9a}.Notes .path button:last-child::after{content:"";margin-left:0}.Notes .items{flex:1;min-height:0;overflow-y:auto;padding:4px 8px 10px}.Notes .item{display:flex;align-items:center;gap:2px;border-radius:8px}.Notes .item:hover,.Notes .item.active{background:rgba(0,0,0,.07)}.Notes .item-main{min-width:0;flex:1;height:32px;display:flex;align-items:center;gap:7px;border:0;background:rgba(0,0,0,0);color:#2a2a2a;cursor:pointer;text-align:left;font:inherit}.Notes .item-main span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.Notes .item-main input{min-width:0;width:100%;border:0;border-bottom:1px solid #2f80ed;background:rgba(0,0,0,0);outline:none;font:inherit}.Notes .icon{width:24px;height:24px;border:0;background:rgba(0,0,0,0);color:#686868;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:7px}.Notes .icon:hover{background:rgba(0,0,0,.08)}.Notes .editor{min-width:0;display:flex;flex-direction:column;padding:14px}.Notes .note-title{border:0;background:rgba(0,0,0,0);color:#1f1f1f;font:inherit;font-size:22px;font-weight:600;outline:none;padding:0 0 10px}.Notes textarea{flex:1;min-height:220px;resize:none;border:0;outline:none;background:rgba(0,0,0,0);color:#232323;font:inherit;line-height:1.45}.Notes .empty{color:#777;font-size:14px;padding:8px}.Notes .editor-empty{margin:auto}@media(max-width: 700px){.Notes{width:min(94vw,520px);max-width:94vw}.Notes .panel{grid-template-columns:1fr;max-height:74vh}.Notes .sidebar{max-height:220px;border-right:0;border-bottom:1px solid rgba(0,0,0,.1)}}
+.PlanOfDay{width:360px;max-width:40vw;color:#1f1f1f;text-align:left;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif}.PlanOfDay .panel{background:rgba(245,246,248,.93);border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:14px;backdrop-filter:blur(6px)}.PlanOfDay .header{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 10px}.PlanOfDay .title{position:relative;display:flex;align-items:baseline;gap:6px;font-size:22px;font-weight:600;color:#232323}.PlanOfDay .date-picker{border:0;background:rgba(0,0,0,.07);color:#3f3f3f;border-radius:8px;cursor:pointer;font:inherit;font-size:16px;padding:2px 8px}.PlanOfDay .date-picker:hover{background:rgba(0,0,0,.11)}.PlanOfDay .date-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.PlanOfDay textarea{width:100%;min-height:180px;max-height:44vh;resize:vertical;border:0;outline:none;background:rgba(0,0,0,0);color:#232323;font:inherit;line-height:1.45;padding:0}@media(max-width: 700px){.PlanOfDay{width:min(94vw,360px);max-width:94vw}}
+.Quote{overflow:visible;color:hsla(0,0%,100%,.75);max-width:420px;margin:0 auto}.Quote .QuoteContent{font-family:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;font-size:16px;font-weight:400;line-height:1.35 !important;letter-spacing:.2px;text-shadow:0 1px 2px rgba(0,0,0,.25);margin-bottom:6px}.Quote h4{line-height:1.25 !important}.Quote sub{bottom:0;font-size:12px;font-weight:400;opacity:0;display:block;margin-top:6px;text-align:center;transition:opacity 120ms ease;color:hsla(0,0%,100%,.7)}.Quote:hover sub{opacity:.75}
+.Suggestions{display:grid;position:absolute;margin-top:-1rem;width:100%;background:rgba(0,0,0,.5);border-radius:0 0 1rem 1rem}.Suggestions input{color:inherit;cursor:pointer}.Suggestions .active{text-decoration:underline}.light .Suggestions{background:hsla(0,0%,100%,.5)}
+.Search{display:block;position:relative;width:40vw;max-width:420px;margin:1.25rem auto 0}.Search input{background-color:rgba(0,0,0,0);border:0;font-family:inherit;font-size:1.1em;outline:none;padding:.15em 0;text-align:center;text-shadow:inherit}.Search>input{margin:1rem 0;width:100%;border-bottom-style:solid;border-bottom-width:2px}
+.Time.Analogue{text-align:center}.Time.Analogue svg{max-width:10em;width:100%;height:auto}.Time.Analogue svg circle.bezel{fill:rgba(0,0,0,0);stroke-width:2}.Time.Analogue svg line{stroke-linecap:round;stroke-width:2;transform-origin:50px 50px;transition:transform .15s cubic-bezier(0.175, 0.885, 0.32, 1.275)}.Time.Analogue svg line.hours{stroke-width:3}.Time.Analogue svg line.minutes{stroke-width:2}.Time.Analogue svg line.seconds{stroke-width:1.5}
+.Time{font-variant-numeric:tabular-nums}.Time.Digital h1{font-family:"Playfair Display","Baskerville","Times New Roman",serif;font-weight:400}.Time hr{border:0;border-top:2px solid #ecf0f1;margin:1rem 0}
+.TodoPlus{width:360px;max-width:40vw;margin-top:clamp(6px,1vh,12px);position:relative;z-index:20;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif;color:#1f1f1f;font-size:16px;text-align:left;display:flex;flex-direction:column;gap:12px}.TodoPlus .panel{background:rgba(245,246,248,.92);border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:14px 14px 10px;backdrop-filter:blur(6px);overflow:visible;position:relative;z-index:1}.TodoPlus .panel.panel-open{z-index:30}.TodoPlus .panel.panel-collapsed{flex:0 0 auto}.TodoPlus .header{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 6px}.TodoPlus .list{overflow-y:auto;padding-right:6px;padding-top:2px;min-height:0;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.25) rgba(0,0,0,0)}.TodoPlus .list::-webkit-scrollbar{width:6px}.TodoPlus .list::-webkit-scrollbar-track{background:rgba(0,0,0,0)}.TodoPlus .list::-webkit-scrollbar-thumb{background-color:rgba(0,0,0,.25);border-radius:999px}.TodoPlus .list>.item,.TodoPlus .list>.empty{margin-left:2px}.TodoPlus .list{position:relative}.TodoPlus .section-title{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:2px 0;font-size:22px;text-transform:none;letter-spacing:0;color:#2a2a2a;font-weight:500;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif}.TodoPlus .section-left{display:inline-flex;align-items:center;gap:6px}.TodoPlus .section-label{display:inline-flex;align-items:center;gap:6px}.TodoPlus .section-menu,.TodoPlus .section-toggle,.TodoPlus .section-switch,.TodoPlus .section-collapse{background:rgba(0,0,0,0);border:0;color:#6b6b6b;cursor:pointer;padding:2px}.TodoPlus .inline-rename{flex:1;display:flex;align-items:center}.TodoPlus .inline-rename input{width:100%;border:0;border-bottom:2px solid #2f80ed;background:rgba(0,0,0,0);font-size:20px;font-weight:500;color:#2a2a2a;outline:none;padding:2px 0;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif}.TodoPlus .inline-add-list{padding:10px 14px !important}.TodoPlus .inline-add-list .section-title{gap:8px}.TodoPlus .inline-add-list-input{flex:1;border:0;border-bottom:2px solid #2f80ed;background:rgba(0,0,0,0);font-size:16px;font-weight:500;color:#2a2a2a;outline:none;padding:4px 0;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif}.TodoPlus .inline-add-list-btn{border:1px solid #2f80ed;background:#2f80ed;color:#fff;border-radius:8px;padding:4px 12px;font-size:13px;cursor:pointer;font-weight:500}.TodoPlus .inline-add-list-btn:hover{background:#2670d0}.TodoPlus .inline-add-list-cancel{background:rgba(0,0,0,0);border:0;color:#9b9b9b;cursor:pointer;padding:4px;display:inline-flex;align-items:center}.TodoPlus .section-toggle{display:inline-flex;align-items:center;gap:8px;font-size:22px;color:#2a2a2a;font-weight:500}.TodoPlus .section-collapse{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:999px}.TodoPlus .section-switch{display:inline-flex;align-items:center;gap:6px;font-size:22px;color:#2a2a2a;font-weight:500}.TodoPlus .section-menu{width:28px;height:28px;border-radius:999px;background:#e6e6e6;display:inline-flex;align-items:center;justify-content:center}.TodoPlus .section-menu:hover{background:#dcdcdc}.TodoPlus .due-view-menu,.TodoPlus .inbox-view-menu{position:absolute;top:44px;left:14px;min-width:170px;background:#f0f0f0;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.15);padding:8px;display:grid;z-index:45}.TodoPlus .due-view-menu button,.TodoPlus .inbox-view-menu button{border:0;background:rgba(0,0,0,0);text-align:left;font-size:13px;color:#3c3c3c;padding:6px 8px;border-radius:6px;cursor:pointer}.TodoPlus .due-view-menu button:hover,.TodoPlus .inbox-view-menu button:hover{background:rgba(0,0,0,.06)}.TodoPlus .empty{font-size:13px;color:#b0b0b0}.TodoPlus .item{display:grid;grid-template-columns:16px 1fr 16px 16px;align-items:start;gap:6px;padding:2px 2px;font-size:13px;line-height:1.3;position:relative;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif}.TodoPlus .item.completed .text{color:#8c8c8c;text-decoration:line-through}.TodoPlus .item.overdue .text{color:#d32f2f}.TodoPlus .item.overdue .meta span{color:#d32f2f}.TodoPlus .check{width:14px;height:14px;border-radius:4px;border:2px solid #b9b9b9;background:#fff;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#4d4d4d;cursor:pointer}.TodoPlus .item.completed .check{background:#4a90d9;border-color:#4a90d9;color:#fff}.TodoPlus .text{outline:none;min-height:0;word-break:break-word}.TodoPlus .content{display:flex;flex-direction:column;gap:2px;position:relative;align-items:flex-start}.TodoPlus .content-row{display:flex;align-items:center;gap:8px;width:100%;justify-content:flex-start}.TodoPlus .meta{display:flex;flex-direction:column;gap:2px;font-size:12px;color:#8f8f8f}.TodoPlus .meta.inline{flex-direction:row;align-items:center;gap:8px;white-space:nowrap}.TodoPlus .text{flex:0 1 auto}.TodoPlus .completed-icon{display:inline-flex;align-items:center;margin-left:6px;color:#9b9b9b;opacity:0}.TodoPlus .item.completed:hover .completed-icon{opacity:1}.TodoPlus .list-menu{margin:0;background:#f0f0f0;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.15);padding:8px;display:grid;position:absolute;top:40px;right:10px;min-width:170px;z-index:40}.TodoPlus .list-menu button{border:0;background:rgba(0,0,0,0);text-align:left;font-size:13px;color:#3c3c3c;padding:6px 8px;border-radius:6px;cursor:pointer}.TodoPlus .list-menu button:hover{background:rgba(0,0,0,.06)}.TodoPlus .list-menu button+button{border-top:1px solid rgba(0,0,0,.08);border-radius:0}.TodoPlus .delete{background:rgba(0,0,0,0);border:0;padding:2px;opacity:0;cursor:pointer;color:#9b9b9b}.TodoPlus .item-menu{background:rgba(0,0,0,0);border:0;padding:2px;opacity:0;cursor:pointer;color:#9b9b9b;width:16px;height:16px}.TodoPlus .item:hover .delete,.TodoPlus .item:hover .item-menu{opacity:1}.TodoPlus .footer{margin-top:10px;padding-top:8px;border-top:1px solid rgba(0,0,0,.08)}.TodoPlus .footer .composer{display:flex;align-items:center;gap:6px}.TodoPlus .footer .composer input{width:100%;border:0;background:rgba(0,0,0,0);font-size:13px;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif;font-weight:400;color:#6f6f6f;outline:none}.TodoPlus .footer .composer .menu-toggle{border:0;background:rgba(0,0,0,0);color:#8a8a8a;cursor:pointer;padding:4px;border-radius:6px}.TodoPlus .footer .composer .menu-toggle.open{background:rgba(0,0,0,.05)}.TodoPlus .footer .composer .due-today{border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,0);border-radius:999px;padding:2px 8px;font-size:11px;color:#6f6f6f;cursor:pointer}.TodoPlus .footer .composer .hidden-control{visibility:hidden;pointer-events:none}.TodoPlus .footer .composer .list-picker{position:relative;display:inline-flex}.TodoPlus .footer .composer .list-picker-toggle{border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,0);border-radius:999px;padding:2px 8px;font-size:11px;color:#6f6f6f;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}.TodoPlus .footer .composer .list-picker-menu{position:absolute;bottom:100%;left:0;min-width:140px;background:#f0f0f0;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.15);padding:6px;display:grid;gap:2px;z-index:50;margin-bottom:4px}.TodoPlus .footer .composer .list-picker-menu button{border:0;background:rgba(0,0,0,0);text-align:left;font-size:12px;color:#3c3c3c;padding:6px 8px;border-radius:6px;cursor:pointer}.TodoPlus .footer .composer .list-picker-menu button:hover{background:rgba(0,0,0,.06)}.TodoPlus .footer .composer .list-picker-menu button.active{background:rgba(47,128,237,.1);color:#2f80ed}.TodoPlus .footer .menu{margin-top:8px;background:#f0f0f0;border:1px solid rgba(0,0,0,.06);border-radius:12px;box-shadow:0 10px 22px rgba(0,0,0,.18);padding:10px;display:flex;flex-direction:column;gap:10px;font-size:14px;color:#4b4b4b;position:relative;z-index:50}.TodoPlus .item-popover{display:none}.TodoPlus .item-popover.up{display:none}.TodoPlus .complete-menu{display:none}.TodoPlus .menu-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.TodoPlus .menu-row-label{display:flex;align-items:center;gap:8px}.TodoPlus .menu-row-value{font-size:12px;color:#8a8a8a}.TodoPlus .calendar-button{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#fff;border:1px solid rgba(0,0,0,.1);cursor:pointer;position:relative}.TodoPlus .calendar-button input{position:absolute;inset:0;opacity:0;cursor:pointer}.TodoPlus .repeat{display:flex;flex-direction:column;gap:8px}.TodoPlus .repeat-options{display:flex;flex-wrap:wrap;gap:6px}.TodoPlus .repeat-options button,.TodoPlus .custom-days button{border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,0);border-radius:999px;padding:4px 7px;font-size:12px;color:#5a5a5a;cursor:pointer}.TodoPlus .repeat-options button.active,.TodoPlus .custom-days button.active{background:#2f80ed;border-color:#2f80ed;color:#fff}.TodoPlus .custom-days{display:flex;flex-wrap:nowrap;gap:4px}@media(max-width: 900px){.TodoPlus{width:92vw;max-width:92vw}.item+.item{margin-top:2px}}.TodoPlus-portal.item-popover{background:#f0f0f0;border:1px solid rgba(0,0,0,.06);border-radius:12px;box-shadow:0 10px 22px rgba(0,0,0,.18);padding:10px;display:flex;flex-direction:column;gap:10px;font-size:14px;color:#4b4b4b;z-index:100000;pointer-events:auto;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif;width:310px}.TodoPlus-portal.item-popover .menu-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.TodoPlus-portal.item-popover .menu-row-label{display:flex;align-items:center;gap:8px}.TodoPlus-portal.item-popover .menu-row-value{font-size:12px;color:#8a8a8a}.TodoPlus-portal.item-popover .calendar-button{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#fff;border:1px solid rgba(0,0,0,.1);cursor:pointer;position:relative}.TodoPlus-portal.item-popover .calendar-button input{position:absolute;inset:0;opacity:0;cursor:pointer}.TodoPlus-portal.item-popover .repeat{display:flex;flex-direction:column;gap:8px}.TodoPlus-portal.item-popover .repeat-options{display:flex;flex-wrap:wrap;gap:6px}.TodoPlus-portal.item-popover .repeat-options button,.TodoPlus-portal.item-popover .custom-days button{border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,0);border-radius:999px;padding:4px 7px;font-size:12px;color:#5a5a5a;cursor:pointer}.TodoPlus-portal.item-popover .repeat-options button.active,.TodoPlus-portal.item-popover .custom-days button.active{background:#2f80ed;border-color:#2f80ed;color:#fff}.TodoPlus-portal.item-popover .custom-days{display:flex;flex-wrap:nowrap;gap:4px}.TodoPlus-portal.complete-menu{background:#f0f0f0;border:1px solid rgba(0,0,0,.06);border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.15);padding:6px;display:grid;gap:2px;z-index:100000;font-family:"Bricolage Grotesque","Sebino","Sabino","Helvetica Neue","SF Pro Text","Avenir Next",Avenir,Arial,sans-serif}.TodoPlus-portal.complete-menu button{border:0;background:rgba(0,0,0,0);text-align:left;font-size:12px;color:#3c3c3c;padding:6px 8px;border-radius:6px;cursor:pointer}.TodoPlus-portal.complete-menu button:hover{background:rgba(0,0,0,.06)}
+.Dashboard{overflow:hidden}.Dashboard svg{filter:drop-shadow(0 0 0.5rem rgba(0, 0, 0, 0.25))}.Dashboard a{color:inherit}.Dashboard input{color:inherit}.Dashboard input::placeholder{color:inherit;opacity:.5}.Dashboard.light{background-color:#fff;color:#111}.Dashboard.light .theme-fill{fill:#111}.Dashboard.light .theme-stroke{stroke:#111}.Dashboard.light input{border-color:#111}.Dashboard.dark{background-color:#000;color:#fff}.Dashboard.dark .theme-fill{fill:#fff}.Dashboard.dark .theme-stroke{stroke:#fff}.Dashboard.dark input{border-color:#fff}.Dashboard .DevBadge{position:absolute;right:16px;bottom:16px;padding:6px 10px;font-size:12px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;z-index:5}
+.Overlay{position:absolute;top:0;left:0;margin:.5rem;padding:.5rem;border-radius:1.25rem;transition:all .25s ease-out;font-size:1.1rem}.Overlay .on-hover{opacity:0;transition:all .25s ease-out}.Overlay:hover{opacity:1;background-color:rgba(0,0,0,.65)}.Overlay:hover .on-hover{opacity:1}.Overlay:hover svg{color:#3498db;filter:none}.Overlay a,.Overlay span{margin:0 .25em}.Overlay svg,.Overlay i{transition:stroke .25s ease-out}.light .Overlay:hover{background-color:hsla(0,0%,100%,.65)}
+.Slot{position:absolute}.Slot.topLeft{top:2rem;left:0;text-align:left}.Slot.topCentre{top:0;left:50%;transform:translateX(-50%);text-align:center}.Slot.topRight{top:0;right:0;text-align:right}.Slot.middleLeft{top:50%;left:0;transform:translateY(-50%);text-align:left}.Slot.middleCentre{top:50%;left:50%;transform:translate(-50%, -50%);text-align:center}.Slot.middleRight{top:50%;right:0;transform:translateY(-50%);text-align:right}.Slot.bottomLeft{bottom:3rem;left:0;text-align:left}.Slot.bottomCentre{bottom:3rem;left:50%;transform:translateX(-50%);text-align:center}.Slot.bottomRight{bottom:3rem;right:0;text-align:right}
+.Widgets{padding:0;text-align:center;pointer-events:none}.Widgets .container{position:relative;width:100%;height:100%}.Widgets .container .Slot>*{margin:1rem;pointer-events:all}.Widgets h1,.Widgets h2,.Widgets h3,.Widgets h4{line-height:1;margin:0}.Widgets .weight-override h1,.Widgets .weight-override h2,.Widgets .weight-override h3,.Widgets .weight-override h4{font-weight:inherit}
+.Settings h1{margin:2rem 0}.Settings h1 svg{fill:#3498db;width:100%}.Settings h2,.Settings h3,.Settings h4{color:#212121}.Settings h2,.Settings h3{margin-bottom:0}.Settings .plane{border-radius:0 1rem 1rem 0;box-shadow:0 .5rem 1rem rgba(0,0,0,.25);background-color:#fff;max-width:100%;height:100%;overflow-y:auto;padding:0 1rem;position:absolute;width:330px;transition:transform .15s ease-out}.Settings label{display:block;margin:1rem 0}.Settings label:last-child{margin-bottom:0}.Settings label+.info{font-size:.9em;margin-top:-0.75rem}.Settings input[type=email],.Settings input[type=file],.Settings input[type=number],.Settings input[type=text],.Settings input[type=time],.Settings input[type=url],.Settings textarea,.Settings select{border:1px solid #bdc3c7;border-radius:.2em;color:inherit;display:block;margin:.5em 0;padding:.5em;width:100%;overflow:hidden}.Settings input[type=email].primary,.Settings input[type=file].primary,.Settings input[type=number].primary,.Settings input[type=text].primary,.Settings input[type=time].primary,.Settings input[type=url].primary,.Settings textarea.primary,.Settings select.primary{background-color:#ecf0f1;border:.25em solid #ecf0f1}.Settings input[type=email]+.input--error,.Settings input[type=file]+.input--error,.Settings input[type=number]+.input--error,.Settings input[type=text]+.input--error,.Settings input[type=time]+.input--error,.Settings input[type=url]+.input--error,.Settings textarea+.input--error,.Settings select+.input--error{display:none}.Settings input[type=email]:invalid+.input--error,.Settings input[type=file]:invalid+.input--error,.Settings input[type=number]:invalid+.input--error,.Settings input[type=text]:invalid+.input--error,.Settings input[type=time]:invalid+.input--error,.Settings input[type=url]:invalid+.input--error,.Settings textarea:invalid+.input--error,.Settings select:invalid+.input--error{display:block}.Settings input[type=radio],.Settings input[type=checkbox]{margin-right:.5rem}.Settings input[type=color]{display:block}.Settings .button{border:0;border-radius:2em;color:#fff;cursor:pointer;display:inline-block;padding:.5em 1em;text-decoration:none;transition:background .25s ease-out;text-align:center;font-weight:500}.Settings .button:disabled{background-color:#bdc3c7;cursor:default}.Settings .button--primary{background-color:#3498db}.Settings .button--primary:hover{background:rgb(33.1380753138,125.1882845188,186.8619246862)}.Settings .button--primary:active{background:rgb(25.4560669456,96.1673640167,143.5439330544)}.Settings .button--secondary{background:hsl(204,8.1967213115%,56.0784313725%)}.Settings .button--secondary:hover{background:hsl(204,8.1967213115%,46.0784313725%)}.Settings .button--secondary:active{background:hsl(204,8.1967213115%,36.0784313725%)}.Settings hr{border:1px solid #ecf0f1;margin:1rem 0}.button--icon{background-color:#ecf0f1;border:none;border-radius:1em;display:inline-block;padding:.5em;line-height:1;height:2em;width:2em;color:#000;cursor:pointer;transition:background-color .25s ease-out}.button--icon:hover{background-color:#bdc3c7 !important}.button--icon.button--primary{background-color:#3498db !important;color:#fff;padding:.5em}.button--icon.button--primary:hover{background-color:rgb(25.4560669456,96.1673640167,143.5439330544) !important}
+.Modal-container {
+  background: rgba(0, 0, 0, 0.25);
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+
+  display: flex;
+  align-items: end;
+  justify-content: center;
+}
+
+.Modal {
+  background: white;
+  border-radius: 1rem 1rem 0 0;
+  padding: 2rem;
+  min-width: 300px;
+  max-width: 500px;
+}
+
+.Modal-footer {
+  text-align: center;
+}
+
+
+/*# sourceMappingURL=main.7188054fd14c.css.map*/

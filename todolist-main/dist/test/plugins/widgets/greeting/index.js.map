@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../../src/plugins/widgets/greeting/index.ts"],"names":[],"mappings":";;;;;AACA,0DAAkC;AAClC,0EAAkD;AAElD,MAAM,MAAM,GAAW;IACrB,GAAG,EAAE,iBAAiB;IACtB,IAAI,EAAE,UAAU;IAChB,WAAW,EAAE,gCAAgC;IAC7C,kBAAkB,EAAE,kBAAQ;IAC5B,iBAAiB,EAAE,0BAAgB;CACpC,CAAC;AAEF,kBAAe,MAAM,CAAC"}

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "To Do List",
+  "short_name": "ToDo",
+  "version": "2.6.0",
+  "description": "A beautiful New Tab page with a powerful to do list function.",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "icons": {
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "96": "icons/96.png",
+    "128": "icons/128.png"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["https://*.ts.net/*"]
+}
