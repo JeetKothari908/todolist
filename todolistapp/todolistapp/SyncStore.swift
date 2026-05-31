@@ -1,0 +1,339 @@
+import Combine
+import Foundation
+
+@MainActor
+final class SyncStore: ObservableObject {
+    @Published var todos = TodoData()
+    @Published var notes = NotesData()
+    @Published var plan = PlanData()
+    @Published var isSyncing = false
+    @Published var status = "Not synced yet"
+    @Published var errorMessage: String?
+
+    @Published var serverURL = UserDefaults.standard.string(forKey: "sync.serverURL") ?? "https://raspberrypi.tail2db278.ts.net" {
+        didSet { UserDefaults.standard.set(serverURL, forKey: "sync.serverURL") }
+    }
+
+    @Published var authToken = UserDefaults.standard.string(forKey: "sync.authToken") ?? "jfiweokgerhotrwhtr" {
+        didSet { UserDefaults.standard.set(authToken, forKey: "sync.authToken") }
+    }
+
+    private let storeName = "tabliss/config"
+    private var todoDataKey = "data/default-todo"
+    private var notesDataKey = "data/default-notes"
+    private var planDataKey = "data/default-plan"
+    private var bootstrapChanges: [RemoteChange] = []
+    private let encoder = JSONEncoder()
+    private let decoder = JSONDecoder()
+
+    init() {
+        todos = Self.load(TodoData.self, key: "cache.todos") ?? TodoData()
+        notes = Self.load(NotesData.self, key: "cache.notes") ?? NotesData()
+        plan = Self.load(PlanData.self, key: "cache.plan") ?? PlanData()
+    }
+
+    var activeTodos: [TodoItem] {
+        todos.items.filter { $0.dismissed != true }
+    }
+
+    var finishedTodos: [TodoItem] {
+        todos.items.filter { $0.dismissed == true }
+    }
+
+    var liveNotes: [NoteNode] {
+        notes.items.filter { $0.deleted != true && $0.type == "note" }
+    }
+
+    func refresh() async {
+        await performSync {
+            let snapshot = try await self.requestSnapshot()
+            self.apply(snapshot: snapshot)
+            if !self.bootstrapChanges.isEmpty {
+                try await self.post(changes: self.bootstrapChanges)
+                self.bootstrapChanges = []
+            }
+            self.status = "Synced \(Date.now.formatted(date: .omitted, time: .shortened))"
+        }
+    }
+
+    func addTodo(_ contents: String, dueDate: String? = nil) {
+        let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        todos.items.append(
+            TodoItem(
+                id: Self.makeId(),
+                contents: trimmed,
+                completed: false,
+                dismissed: false,
+                dueDate: dueDate
+            )
+        )
+        persist()
+        Task { await pushTodos() }
+    }
+
+    func toggleTodo(_ item: TodoItem) {
+        guard let index = todos.items.firstIndex(where: { $0.id == item.id }) else { return }
+        todos.items[index].completed.toggle()
+        if todos.items[index].completed == false {
+            todos.items[index].dismissed = false
+        }
+        persist()
+        Task { await pushTodos() }
+    }
+
+    func dismissTodo(_ item: TodoItem) {
+        guard let index = todos.items.firstIndex(where: { $0.id == item.id }) else { return }
+        todos.items[index].completed = true
+        todos.items[index].dismissed = true
+        persist()
+        Task { await pushTodos() }
+    }
+
+    func deleteTodo(_ item: TodoItem) {
+        todos.items.removeAll { $0.id == item.id }
+        persist()
+        Task { await pushTodos() }
+    }
+
+    func addNote(title: String, contents: String) {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedContents = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty || !trimmedContents.isEmpty else { return }
+        let id = Self.makeId()
+        notes.items.append(
+            NoteNode(
+                id: id,
+                type: "note",
+                name: trimmedTitle.isEmpty ? "Untitled Note" : trimmedTitle,
+                parentId: nil,
+                contents: trimmedContents
+            )
+        )
+        notes.selectedNoteId = id
+        notes.currentFolderId = nil
+        persist()
+        Task { await pushNotes() }
+    }
+
+    func updateNote(_ note: NoteNode, title: String, contents: String) {
+        guard let index = notes.items.firstIndex(where: { $0.id == note.id }) else { return }
+        notes.items[index].name = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled Note" : title
+        notes.items[index].contents = contents
+        notes.selectedNoteId = note.id
+        persist()
+        Task { await pushNotes() }
+    }
+
+    func deleteNote(_ note: NoteNode) {
+        guard let index = notes.items.firstIndex(where: { $0.id == note.id }) else { return }
+        notes.items[index].deleted = true
+        notes.items[index].deletedAt = ISO8601DateFormatter().string(from: Date())
+        if notes.selectedNoteId == note.id {
+            notes.selectedNoteId = nil
+        }
+        persist()
+        Task { await pushNotes() }
+    }
+
+    func updatePlan(date: String, contents: String) {
+        plan.plans[date] = contents
+        plan.activeDate = Self.todayKey()
+        plan.selectedDate = date
+        persist()
+        Task { await pushPlan() }
+    }
+
+    func pushTodos() async {
+        await push(value: todos, key: todoDataKey, label: "Todos saved")
+    }
+
+    func pushNotes() async {
+        await push(value: notes, key: notesDataKey, label: "Notes saved")
+    }
+
+    func pushPlan() async {
+        await push(value: plan, key: planDataKey, label: "Plan saved")
+    }
+
+    private func push<T: Encodable>(value: T, key: String, label: String) async {
+        await performSync {
+            try await self.post(changes: [RemoteChange(key: key, value: try JSONValue(encoding: value, encoder: self.encoder), deleted: false)])
+            self.status = label
+        }
+    }
+
+    private func performSync(_ operation: @escaping () async throws -> Void) async {
+        isSyncing = true
+        errorMessage = nil
+        do {
+            try await operation()
+        } catch {
+            errorMessage = error.localizedDescription
+            status = "Sync failed"
+        }
+        isSyncing = false
+    }
+
+    private func requestSnapshot() async throws -> RemoteSnapshot {
+        var request = URLRequest(url: try endpoint(""))
+        request.httpMethod = "GET"
+        applyHeaders(to: &request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+        return try decoder.decode(RemoteSnapshot.self, from: data)
+    }
+
+    private func post(changes: [RemoteChange]) async throws {
+        var request = URLRequest(url: try endpoint("/changes"))
+        request.httpMethod = "POST"
+        applyHeaders(to: &request)
+        request.httpBody = try encoder.encode(RemoteSnapshot(changes: changes))
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response)
+    }
+
+    private func apply(snapshot: RemoteSnapshot) {
+        let values = Dictionary(uniqueKeysWithValues: snapshot.changes.compactMap { change -> (String, JSONValue)? in
+            guard change.deleted != true, let value = change.value else { return nil }
+            return (change.key, value)
+        })
+
+        todoDataKey = dataKey(forWidgetKey: "widget/todo", fallback: todoDataKey, values: values)
+        notesDataKey = ensureWidget(
+            widgetId: "default-notes",
+            widgetKey: "widget/notes",
+            order: 4,
+            position: "bottomLeft",
+            fallbackDataKey: notesDataKey,
+            values: values
+        )
+        planDataKey = ensureWidget(
+            widgetId: "default-plan",
+            widgetKey: "widget/planOfDay",
+            order: 5,
+            position: "topRight",
+            fallbackDataKey: planDataKey,
+            values: values
+        )
+
+        decodeIfPresent(TodoData.self, key: todoDataKey, values: values) { todos = $0 }
+        decodeIfPresent(NotesData.self, key: notesDataKey, values: values) { notes = $0 }
+        decodeIfPresent(PlanData.self, key: planDataKey, values: values) { plan = $0 }
+
+        if plan.selectedDate == nil {
+            plan.selectedDate = Self.todayKey()
+        }
+        if plan.activeDate == nil {
+            plan.activeDate = Self.todayKey()
+        }
+        persist()
+    }
+
+    private func ensureWidget(
+        widgetId: String,
+        widgetKey: String,
+        order: Int,
+        position: String,
+        fallbackDataKey: String,
+        values: [String: JSONValue]
+    ) -> String {
+        let existingDataKey = dataKey(forWidgetKey: widgetKey, fallback: "", values: values)
+        if !existingDataKey.isEmpty {
+            return existingDataKey
+        }
+
+        do {
+            let widget = WidgetState(
+                id: widgetId,
+                key: widgetKey,
+                order: order,
+                display: WidgetDisplay(position: position)
+            )
+            bootstrapChanges.append(
+                RemoteChange(
+                    key: "widget/\(widgetId)",
+                    value: try JSONValue(encoding: widget, encoder: encoder),
+                    deleted: false
+                )
+            )
+        } catch {
+            errorMessage = "Could not create \(widgetKey): \(error.localizedDescription)"
+        }
+        return fallbackDataKey
+    }
+
+    private func dataKey(forWidgetKey widgetKey: String, fallback: String, values: [String: JSONValue]) -> String {
+        for (key, value) in values where key.hasPrefix("widget/") {
+            guard let object = value.objectValue,
+                  object["key"]?.stringValue == widgetKey,
+                  let id = object["id"]?.stringValue else {
+                continue
+            }
+            return "data/\(id)"
+        }
+        return fallback
+    }
+
+    private func decodeIfPresent<T: Decodable>(_ type: T.Type, key: String, values: [String: JSONValue], assign: (T) -> Void) {
+        guard let value = values[key] else { return }
+        do {
+            assign(try value.decode(type, decoder: decoder))
+        } catch {
+            errorMessage = "Could not decode \(key): \(error.localizedDescription)"
+        }
+    }
+
+    private func endpoint(_ suffix: String) throws -> URL {
+        let trimmedBase = serverURL.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let path = storeName.split(separator: "/").map { String($0).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }.joined(separator: "/")
+        guard let url = URL(string: "\(trimmedBase)/v1/stores/\(path)\(suffix)") else {
+            throw URLError(.badURL)
+        }
+        return url
+    }
+
+    private func applyHeaders(to request: inout URLRequest) {
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        let token = authToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "authorization")
+        }
+    }
+
+    private func validate(response: URLResponse) throws {
+        guard let http = response as? HTTPURLResponse else { return }
+        guard 200..<300 ~= http.statusCode else {
+            throw URLError(.badServerResponse)
+        }
+    }
+
+    static func makeId() -> String {
+        UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+    }
+
+    static func todayKey() -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+
+    private func persist() {
+        Self.save(todos, key: "cache.todos")
+        Self.save(notes, key: "cache.notes")
+        Self.save(plan, key: "cache.plan")
+    }
+
+    private static func save<T: Encodable>(_ value: T, key: String) {
+        if let data = try? JSONEncoder().encode(value) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    private static func load<T: Decodable>(_ type: T.Type, key: String) -> T? {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+}

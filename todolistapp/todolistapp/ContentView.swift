@@ -1,66 +1,76 @@
-//
-//  ContentView.swift
-//  todolistapp
-//
-//  Created by Jeet Kothari on 5/31/26.
-//
-// hope this fucking works this time lol
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @EnvironmentObject private var store: SyncStore
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        TabView {
+            NavigationStack {
+                TodoListView()
             }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
-            .toolbar {
-#if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-#endif
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
+            .tabItem {
+                Label("Todos", systemImage: "checklist")
             }
-        } detail: {
-            Text("Select an item")
+
+            NavigationStack {
+                NotesView()
+            }
+            .tabItem {
+                Label("Notes", systemImage: "note.text")
+            }
+
+            NavigationStack {
+                PlanOfDayView()
+            }
+            .tabItem {
+                Label("Plan", systemImage: "calendar")
+            }
+        }
+        .task {
+            await store.refresh()
         }
     }
+}
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+struct SyncToolbar: ToolbarContent {
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            SyncButtons()
         }
     }
+}
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+private struct SyncButtons: View {
+    @EnvironmentObject private var store: SyncStore
+    @State private var settingsOpen = false
+
+    var body: some View {
+        HStack(spacing: 14) {
+            if store.isSyncing {
+                ProgressView()
             }
+
+            Button {
+                Task { await store.refresh() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .disabled(store.isSyncing)
+
+            Button {
+                settingsOpen = true
+            } label: {
+                Image(systemName: "gearshape")
+            }
+        }
+        .sheet(isPresented: $settingsOpen) {
+            SyncSettingsView()
+                .environmentObject(store)
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .environmentObject(SyncStore())
 }
