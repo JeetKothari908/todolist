@@ -278,7 +278,7 @@ private struct NotificationGroupEditorView: View {
                         ForEach(capped) { todo in
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(todo.contents)
-                                if let dueDate = todo.dueDate {
+                                if let dueDate = Self.displayDue(todo) {
                                     Text(dueDate)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -332,6 +332,11 @@ private struct NotificationGroupEditorView: View {
         let components = Calendar.current.dateComponents([.hour, .minute], from: date)
         return (components.hour ?? 0) * 60 + (components.minute ?? 0)
     }
+
+    private static func displayDue(_ todo: TodoItem) -> String? {
+        guard let dueDate = todo.dueDate else { return todo.dueTime }
+        return todo.dueTime.map { "\(dueDate) \($0)" } ?? dueDate
+    }
 }
 
 private struct SpecificTodoPicker: View {
@@ -342,8 +347,13 @@ private struct SpecificTodoPicker: View {
         todos.sorted { lhs, rhs in
             let leftDate = lhs.dueDate ?? "9999-99-99"
             let rightDate = rhs.dueDate ?? "9999-99-99"
+            let leftTime = lhs.dueTime ?? "99:99"
+            let rightTime = rhs.dueTime ?? "99:99"
             if leftDate != rightDate {
                 return leftDate < rightDate
+            }
+            if leftTime != rightTime {
+                return leftTime < rightTime
             }
             return lhs.contents < rhs.contents
         }
@@ -376,7 +386,7 @@ private struct SpecificTodoPicker: View {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(todo.contents)
                                     .foregroundStyle(.primary)
-                                if let dueDate = todo.dueDate {
+                                if let dueDate = displayDue(todo) {
                                     Text(dueDate)
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
@@ -398,6 +408,11 @@ private struct SpecificTodoPicker: View {
         } else {
             selectedIds.append(id)
         }
+    }
+
+    private func displayDue(_ todo: TodoItem) -> String? {
+        guard let dueDate = todo.dueDate else { return todo.dueTime }
+        return todo.dueTime.map { "\(dueDate) \($0)" } ?? dueDate
     }
 }
 

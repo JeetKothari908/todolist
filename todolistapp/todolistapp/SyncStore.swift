@@ -56,7 +56,7 @@ final class SyncStore: ObservableObject {
         }
     }
 
-    func addTodo(_ contents: String, dueDate: String? = nil, repeatRule: RepeatRule? = nil) {
+    func addTodo(_ contents: String, dueDate: String? = nil, dueTime: String? = nil, repeatRule: RepeatRule? = nil) {
         let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         todos.items.append(
@@ -66,6 +66,7 @@ final class SyncStore: ObservableObject {
                 completed: false,
                 dismissed: false,
                 dueDate: dueDate,
+                dueTime: dueDate != nil || repeatRule != nil ? dueTime : nil,
                 repeat: repeatRule
             )
         )
@@ -73,7 +74,7 @@ final class SyncStore: ObservableObject {
         Task { await pushTodos() }
     }
 
-    func updateTodo(_ item: TodoItem, contents: String, dueDate: String?, repeatRule: RepeatRule?) {
+    func updateTodo(_ item: TodoItem, contents: String, dueDate: String?, dueTime: String?, repeatRule: RepeatRule?) {
         let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               let index = todos.items.firstIndex(where: { $0.id == item.id }) else {
@@ -81,6 +82,7 @@ final class SyncStore: ObservableObject {
         }
         todos.items[index].contents = trimmed
         todos.items[index].dueDate = dueDate
+        todos.items[index].dueTime = dueDate != nil || repeatRule != nil ? dueTime : nil
         todos.items[index].repeat = repeatRule
         persist()
         Task { await pushTodos() }
@@ -88,6 +90,10 @@ final class SyncStore: ObservableObject {
 
     func toggleTodo(_ item: TodoItem) {
         guard let index = todos.items.firstIndex(where: { $0.id == item.id }) else { return }
+        if todos.items[index].completed == false, let repeatRule = todos.items[index].repeat {
+            completeRepeatInstance(item: todos.items[index], repeatRule: repeatRule)
+            return
+        }
         todos.items[index].completed.toggle()
         if todos.items[index].completed == false {
             todos.items[index].dismissed = false
@@ -106,6 +112,38 @@ final class SyncStore: ObservableObject {
 
     func deleteTodo(_ item: TodoItem) {
         todos.items.removeAll { $0.id == item.id }
+        persist()
+        Task { await pushTodos() }
+    }
+
+    private func completeRepeatInstance(item: TodoItem, repeatRule: RepeatRule) {
+        let currentDueDate = item.dueDate ?? Self.firstRepeatDate(repeatRule)
+        guard let nextDueDate = Self.nextRepeatDate(repeatRule, from: currentDueDate) else { return }
+        let siblingDates = Set(todos.items.compactMap { sibling -> String? in
+            sibling.parentId == item.id && sibling.completed ? sibling.dueDate : nil
+        })
+        var advancedDate = nextDueDate
+        var safety = 0
+        while siblingDates.contains(advancedDate), safety < 365,
+              let next = Self.nextRepeatDate(repeatRule, from: advancedDate) {
+            advancedDate = next
+            safety += 1
+        }
+        guard let parentIndex = todos.items.firstIndex(where: { $0.id == item.id }) else { return }
+        todos.items[parentIndex].dueDate = advancedDate
+        todos.items.append(
+            TodoItem(
+                id: Self.makeId(),
+                contents: item.contents,
+                completed: true,
+                dismissed: false,
+                dueDate: currentDueDate,
+                dueTime: item.dueTime,
+                repeat: nil,
+                parentId: item.id,
+                listId: item.listId
+            )
+        )
         persist()
         Task { await pushTodos() }
     }
@@ -333,6 +371,64 @@ final class SyncStore: ObservableObject {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date())
+    }
+
+    static func firstRepeatDate(_ rule: RepeatRule, today: Date = Date()) -> String? {
+        if rule.type == "daily" {
+            return Self.dateKey(today)
+        }
+        let days = repeatDays(rule, fallbackDate: today)
+        guard !days.isEmpty else { return nil }
+        let calendar = Calendar(identifier: .gregorian)
+        for offset in 0...6 {
+            guard let candidate = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
+            if days.contains(calendar.component(.weekday, from: candidate) - 1) {
+                return Self.dateKey(candidate)
+            }
+        }
+        return nil
+    }
+
+    static func nextRepeatDate(_ rule: RepeatRule, from dueDate: String?) -> String? {
+        let base = date(from: dueDate) ?? Date()
+        let calendar = Calendar(identifier: .gregorian)
+        if rule.type == "daily" {
+            return calendar.date(byAdding: .day, value: 1, to: base).map(Self.dateKey)
+        }
+        let days = repeatDays(rule, fallbackDate: base)
+        guard !days.isEmpty else { return nil }
+        for offset in 1...7 {
+            guard let candidate = calendar.date(byAdding: .day, value: offset, to: base) else { continue }
+            if days.contains(calendar.component(.weekday, from: candidate) - 1) {
+                return Self.dateKey(candidate)
+            }
+        }
+        return nil
+    }
+
+    private static func repeatDays(_ rule: RepeatRule, fallbackDate: Date) -> [Int] {
+        if rule.type == "daily" { return [0, 1, 2, 3, 4, 5, 6] }
+        if let days = rule.days, !days.isEmpty { return days }
+        return rule.type == "weekly"
+            ? [Calendar(identifier: .gregorian).component(.weekday, from: fallbackDate) - 1]
+            : []
+    }
+
+    private static func dateKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private static func date(from key: String?) -> Date? {
+        guard let key else { return nil }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: key)
     }
 
     static func splitNote(_ note: NoteNode) -> (title: String, body: String) {

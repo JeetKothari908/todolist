@@ -153,8 +153,8 @@ final class TodoNotificationStore: ObservableObject {
                 return Self.matchesFilter(todo, group: group)
             }
             .sorted { lhs, rhs in
-                let leftDate = lhs.dueDate ?? "9999-99-99"
-                let rightDate = rhs.dueDate ?? "9999-99-99"
+                let leftDate = Self.sortKey(lhs)
+                let rightDate = Self.sortKey(rhs)
                 if leftDate != rightDate {
                     return leftDate < rightDate
                 }
@@ -172,7 +172,7 @@ final class TodoNotificationStore: ObservableObject {
             return isDueToday(todo) || repeatsToday(todo)
         case .overdue:
             guard let dueDate = todo.dueDate else { return false }
-            return dueDate < Self.todayKey()
+            return dueDate < Self.todayKey() || (dueDate == Self.todayKey() && (todo.dueTime ?? "99:99") < Self.timeKey())
         case .inbox:
             guard let dueDate = todo.dueDate else { return true }
             return dueDate > Self.todayKey()
@@ -181,7 +181,7 @@ final class TodoNotificationStore: ObservableObject {
         case .noDueDate:
             return todo.dueDate == nil
         case .dueWithinDays:
-            guard let dueDate = Self.date(from: todo.dueDate) else { return false }
+            guard let dueDate = Self.dateTime(for: todo) else { return false }
             let end = Calendar.current.date(byAdding: .day, value: group.dueWithinDays, to: Date()) ?? Date()
             return dueDate >= Calendar.current.startOfDay(for: Date()) && dueDate <= end
         }
@@ -244,7 +244,8 @@ final class TodoNotificationStore: ObservableObject {
         case .detailed:
             content.body = todos.map { todo in
                 if let dueDate = todo.dueDate {
-                    return "\(todo.contents) (\(dueDate))"
+                    let due = todo.dueTime.map { "\(dueDate) \($0)" } ?? dueDate
+                    return "\(todo.contents) (\(due))"
                 }
                 return todo.contents
             }.joined(separator: "\n")
@@ -316,6 +317,28 @@ final class TodoNotificationStore: ObservableObject {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date())
+    }
+
+    private static func timeKey(_ date: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private static func sortKey(_ todo: TodoItem) -> String {
+        "\(todo.dueDate ?? "9999-99-99")T\(todo.dueTime ?? "99:99")"
+    }
+
+    private static func dateTime(for todo: TodoItem) -> Date? {
+        guard let dueDate = todo.dueDate else { return nil }
+        let dueTime = todo.dueTime ?? "00:00"
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.date(from: "\(dueDate) \(dueTime)")
     }
 
     private static func date(from key: String?) -> Date? {

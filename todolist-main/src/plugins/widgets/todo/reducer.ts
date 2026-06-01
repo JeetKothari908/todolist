@@ -6,6 +6,7 @@ type Todo = {
   completed: boolean;
   dismissed?: boolean;
   dueDate?: string;
+  dueTime?: string;
   repeat?: Repeat;
   parentId?: string;
   listId?: string;
@@ -53,6 +54,7 @@ export function reducer(state: State, action: Action) {
           ? {
               ...todo,
               dueDate: action.data.dueDate,
+              dueTime: action.data.dueTime,
               repeat: action.data.repeat,
             }
           : todo,
@@ -79,6 +81,7 @@ export function reducer(state: State, action: Action) {
         contents: parent.contents,
         completed: true,
         dueDate: action.data.instanceDueDate,
+        dueTime: action.data.instanceDueTime,
         parentId: action.data.parentId,
         listId: parent.listId,
       };

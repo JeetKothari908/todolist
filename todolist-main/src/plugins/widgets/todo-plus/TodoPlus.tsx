@@ -34,6 +34,27 @@ const parseDate = (value?: string) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const parseDueDateTime = (dueDate?: string, dueTime?: string) => {
+  if (!dueDate) return null;
+  const time = dueTime && /^\d{2}:\d{2}$/.test(dueTime) ? dueTime : "00:00";
+  const parsed = new Date(`${dueDate}T${time}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const dueSortKey = (dueDate?: string, dueTime?: string) =>
+  dueDate ? `${dueDate}T${dueTime ?? "99:99"}` : "";
+
+const formatTime = (time?: string) => {
+  if (!time || !/^\d{2}:\d{2}$/.test(time)) return null;
+  const parsed = new Date(`2000-01-01T${time}:00`);
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+};
+
 const addDays = (date: Date, days: number) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 
@@ -98,9 +119,11 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [draftItemMeta, setDraftItemMeta] = useState<{
     id: string;
     dueDate?: string;
+    dueTime?: string;
     repeat?: Repeat;
   } | null>(null);
   const [dueDate, setDueDate] = useState<string | undefined>(undefined);
+  const [dueTime, setDueTime] = useState<string | undefined>(undefined);
   const [repeatType, setRepeatType] = useState<
     "none" | "daily" | "weekly" | "custom"
   >("none");
@@ -147,13 +170,16 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       return;
     }
     const finalRepeat = normalizeRepeat(draftItemMeta.repeat);
+    const finalDueTime = draftItemMeta.dueDate || finalRepeat ? draftItemMeta.dueTime : undefined;
     if (
       current.dueDate !== draftItemMeta.dueDate ||
+      current.dueTime !== finalDueTime ||
       !repeatEqual(current.repeat, finalRepeat)
     ) {
       dispatch(
         updateTodoMeta(draftItemMeta.id, {
           dueDate: draftItemMeta.dueDate,
+          dueTime: finalDueTime,
           repeat: finalRepeat,
         }),
       );
@@ -268,27 +294,32 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     const trimmed = input.trim();
     if (!trimmed) return;
     activeListRef.current = dueDate === todayYmd ? 0 : 1;
-    dispatch(addTodo(trimmed, { dueDate, repeat, listId: selectedListId }));
+    dispatch(addTodo(trimmed, { dueDate, dueTime: dueDate || repeat ? dueTime : undefined, repeat, listId: selectedListId }));
     setInput("");
     setDueDate(undefined);
+    setDueTime(undefined);
     setRepeatType("none");
     setCustomDays([]);
   }
 
-  const submitTaskWithMeta = (meta?: { dueDate?: string; repeat?: Repeat }) => {
+  const submitTaskWithMeta = (meta?: { dueDate?: string; dueTime?: string; repeat?: Repeat }) => {
     const trimmed = input.trim();
     if (!trimmed) return false;
     const finalDueDate = meta?.dueDate ?? dueDate;
+    const finalRepeat = meta?.repeat ?? repeat;
+    const finalDueTime = finalDueDate || finalRepeat ? (meta?.dueTime ?? dueTime) : undefined;
     activeListRef.current = finalDueDate === todayYmd ? 0 : 1;
     dispatch(
       addTodo(trimmed, {
         dueDate: finalDueDate,
-        repeat: meta?.repeat ?? repeat,
+        dueTime: finalDueTime,
+        repeat: finalRepeat,
         listId: selectedListId,
       }),
     );
     setInput("");
     setDueDate(undefined);
+    setDueTime(undefined);
     setRepeatType("none");
     setCustomDays([]);
     return true;
@@ -377,14 +408,18 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   };
   // ──────────────────────────────────────────────────────────
 
-  const formatDueDate = (date?: string) => {
+  const formatDueDate = (date?: string, time?: string) => {
     if (!date) return null;
     const parsed = parseDate(date);
-    if (!parsed || Number.isNaN(parsed.getTime())) return date;
-    return parsed.toLocaleDateString(undefined, {
+    const formattedTime = formatTime(time);
+    if (!parsed || Number.isNaN(parsed.getTime())) {
+      return formattedTime ? `${date}, ${formattedTime}` : date;
+    }
+    const formattedDate = parsed.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
     });
+    return formattedTime ? `${formattedDate}, ${formattedTime}` : formattedDate;
   };
 
   const formatRepeat = (value?: Repeat) => {
@@ -410,6 +445,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const getTaskDisplayDueDate = (item: State[number]) =>
     item.dueDate ?? (item.repeat ? getRepeatDerivedDueDate(item.repeat) : undefined);
 
+  const getTaskDisplayDueTime = (item: State[number]) =>
+    getTaskDisplayDueDate(item) ? item.dueTime : undefined;
+
   const getRepeatDays = (item: State[number]) => {
     if (!item.repeat) return null;
     if (item.repeat.type === "daily") return [0, 1, 2, 3, 4, 5, 6];
@@ -423,8 +461,12 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   };
 
   const isOverdue = (item: State[number]) => {
-    if (!item.dueDate || item.completed) return false;
-    return item.dueDate < todayYmd;
+    const displayDueDate = getTaskDisplayDueDate(item);
+    if (!displayDueDate || item.completed) return false;
+    if (displayDueDate < todayYmd) return true;
+    if (displayDueDate > todayYmd || !item.dueTime) return false;
+    const dueAt = parseDueDateTime(displayDueDate, item.dueTime);
+    return dueAt ? dueAt < today : false;
   };
 
   const isDueToday = (item: State[number]) => {
@@ -466,7 +508,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     if (!aDue && !bDue) return 0;
     if (!aDue) return -1;
     if (!bDue) return 1;
-    return aDue.localeCompare(bDue);
+    return dueSortKey(aDue, getTaskDisplayDueTime(a)).localeCompare(
+      dueSortKey(bDue, getTaskDisplayDueTime(b)),
+    );
   });
   const finishedSorted = [...finished].sort((a, b) => {
     const aDue = getTaskDisplayDueDate(a);
@@ -474,7 +518,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     if (!aDue && !bDue) return 0;
     if (!aDue) return -1;
     if (!bDue) return 1;
-    return aDue.localeCompare(bDue);
+    return dueSortKey(aDue, getTaskDisplayDueTime(a)).localeCompare(
+      dueSortKey(bDue, getTaskDisplayDueTime(b)),
+    );
   });
 
   // Items in custom lists (active, not dismissed)
@@ -488,7 +534,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       if (!aDue && !bDue) return 0;
       if (!aDue) return -1;
       if (!bDue) return 1;
-      return aDue.localeCompare(bDue);
+      return dueSortKey(aDue, getTaskDisplayDueTime(a)).localeCompare(
+        dueSortKey(bDue, getTaskDisplayDueTime(b)),
+      );
     });
   });
 
@@ -532,7 +580,10 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     onRepeatChange: (next?: Repeat) => void,
     currentDueDate?: string,
     onDueDateChange?: (next?: string) => void,
-    onClose?: (next?: { dueDate?: string; repeat?: Repeat }) => void,
+    currentDueTime?: string,
+    onDueTimeChange?: (next?: string) => void,
+    onClose?: (next?: { dueDate?: string; dueTime?: string; repeat?: Repeat }) => void,
+    onDueTimeSubmit?: (next?: { dueDate?: string; dueTime?: string; repeat?: Repeat }) => void,
   ) => (
     <div className="menu">
       <div className="menu-row">
@@ -540,7 +591,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
           <span>Due date</span>
           {(currentDueDate || getRepeatDerivedDueDate(currentRepeat)) && (
             <span className="menu-row-value">
-              {formatDueDate(currentDueDate ?? getRepeatDerivedDueDate(currentRepeat))}
+              {formatDueDate(currentDueDate ?? getRepeatDerivedDueDate(currentRepeat), currentDueTime)}
             </span>
           )}
         </div>
@@ -551,11 +602,38 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             value={currentDueDate ?? ""}
             onChange={(event) => {
               const nextDueDate = event.target.value || undefined;
+              const nextDueTime = nextDueDate || currentRepeat ? currentDueTime : undefined;
               onDueDateChange?.(nextDueDate);
-              onClose?.({ dueDate: nextDueDate, repeat: currentRepeat });
+              if (!nextDueDate) onDueTimeChange?.(undefined);
+              onClose?.({ dueDate: nextDueDate, dueTime: nextDueTime, repeat: currentRepeat });
             }}
           />
         </label>
+      </div>
+      <div className="menu-row">
+        <span>Due time</span>
+        <input
+          className="time-input"
+          type="time"
+          value={currentDueTime ?? ""}
+          disabled={!currentDueDate && !currentRepeat}
+          onChange={(event) => {
+            const nextDueTime = event.target.value || undefined;
+            onDueTimeChange?.(nextDueTime);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            const nextDueTime = event.currentTarget.value || undefined;
+            const next = {
+              dueDate: currentDueDate,
+              dueTime: currentDueDate || currentRepeat ? nextDueTime : undefined,
+              repeat: currentRepeat,
+            };
+            onDueTimeSubmit?.(next);
+            if (!onDueTimeSubmit) onClose?.(next);
+          }}
+        />
       </div>
 
       <div className="repeat">
@@ -600,7 +678,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   // Repeat-derived due date is displayed independently from manual dueDate.
                 }
                 if (option === "daily" || option === "none") {
-                  onClose?.({ dueDate: currentDueDate, repeat: nextRepeat });
+                  onClose?.({ dueDate: currentDueDate, dueTime: currentDueDate || nextRepeat ? currentDueTime : undefined, repeat: nextRepeat });
                 }
               }}
             >
@@ -635,7 +713,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                     if (isWeekly) {
                       const nextRepeat: Repeat = { type: "weekly", days: [index] };
                       onRepeatChange(nextRepeat);
-                      onClose?.({ dueDate: currentDueDate, repeat: nextRepeat });
+                      onClose?.({ dueDate: currentDueDate, dueTime: currentDueDate || nextRepeat ? currentDueTime : undefined, repeat: nextRepeat });
                       return;
                     }
                     onRepeatChange({
@@ -670,6 +748,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       const displayDueDate = isDrafting
         ? (draftItemMeta.dueDate ?? (displayRepeat ? getRepeatDerivedDueDate(displayRepeat) : undefined))
         : getTaskDisplayDueDate(item);
+      const displayDueTime = displayDueDate
+        ? (isDrafting ? draftItemMeta.dueTime : item.dueTime)
+        : undefined;
       return (
         <div
           key={item.id}
@@ -742,7 +823,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
               (options.showRepeat && displayRepeat)) && (
               <div className="meta inline">
                 {options.showDue && displayDueDate && (
-                  <span>{formatDueDate(displayDueDate)}</span>
+                  <span>{formatDueDate(displayDueDate, displayDueTime)}</span>
                 )}
                 {options.showRepeat && displayRepeat && (
                   <span>{formatRepeat(displayRepeat)}</span>
@@ -760,6 +841,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             setDraftItemMeta({
               id: item.id,
               dueDate: item.dueDate,
+              dueTime: item.dueTime,
               repeat: item.repeat,
             });
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -792,6 +874,10 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                     prev && prev.id === item.id
                       ? prev.dueDate
                       : item.dueDate,
+                  dueTime:
+                    prev && prev.id === item.id
+                      ? prev.dueTime
+                      : item.dueTime,
                   repeat: next,
                 })),
               draftItemMeta?.id === item.id
@@ -801,6 +887,28 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 setDraftItemMeta((prev) => ({
                   id: item.id,
                   dueDate: next,
+                  dueTime:
+                    next || (prev && prev.id === item.id ? prev.repeat : item.repeat)
+                      ? prev && prev.id === item.id
+                        ? prev.dueTime
+                        : item.dueTime
+                      : undefined,
+                  repeat:
+                    prev && prev.id === item.id
+                      ? prev.repeat
+                      : item.repeat,
+                })),
+              draftItemMeta?.id === item.id
+                ? draftItemMeta?.dueTime
+                : item.dueTime,
+              (next) =>
+                setDraftItemMeta((prev) => ({
+                  id: item.id,
+                  dueDate:
+                    prev && prev.id === item.id
+                      ? prev.dueDate
+                      : item.dueDate,
+                  dueTime: next,
                   repeat:
                     prev && prev.id === item.id
                       ? prev.repeat
@@ -822,14 +930,23 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   draftItemMeta?.repeat ??
                   item.repeat,
                 );
+                const nextDueTime = nextDueDate || nextRepeat
+                  ? (
+                      next?.dueTime ??
+                      draftItemMeta?.dueTime ??
+                      item.dueTime
+                    )
+                  : undefined;
                 if (
                   current.dueDate !== nextDueDate ||
+                  current.dueTime !== nextDueTime ||
                   !repeatEqual(current.repeat, nextRepeat)
                 ) {
                   activeListRef.current = listIdx;
                   dispatch(
                     updateTodoMeta(item.id, {
                       dueDate: nextDueDate,
+                      dueTime: nextDueTime,
                       repeat: nextRepeat,
                     }),
                   );
@@ -837,6 +954,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 setDraftItemMeta(null);
                 setItemMenuId(null);
               },
+              undefined,
             )}
             {customLists.length > 0 && (
               <div className="menu-row" style={{ marginTop: "4px", paddingTop: "8px", borderTop: "1px solid rgba(0,0,0,0.08)" }}>
@@ -916,6 +1034,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                     completeRepeatInstance(
                       item.id,
                       currentDueDate,
+                      currentDueDate ? item.dueTime : undefined,
                       getYmd(next),
                     ),
                   );
@@ -1498,13 +1617,22 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                 }
               },
               dueDate,
-              (next) => setDueDate(next),
+              (next) => {
+                setDueDate(next);
+                if (!next) setDueTime(undefined);
+              },
+              dueTime,
+              (next) => setDueTime(next),
+              (next) => {
+                setDueDate(next?.dueDate);
+                setDueTime(next?.dueTime);
+              },
               (next) => {
                 const submitted = submitTaskWithMeta(next);
-                if (!submitted && next?.dueDate) {
-                  setDueDate(next.dueDate);
+                if (!submitted) {
+                  setDueDate(next?.dueDate);
+                  setDueTime(next?.dueTime);
                 }
-                // Close menus without re-submitting (submitTaskWithMeta already handled it)
                 setMenuOpen(false);
                 setRemainingMenuOpen(false);
                 setDueListMenuOpen(false);

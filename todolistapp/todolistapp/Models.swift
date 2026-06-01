@@ -30,6 +30,7 @@ struct TodoItem: Codable, Identifiable, Equatable {
     var completed: Bool
     var dismissed: Bool?
     var dueDate: String?
+    var dueTime: String?
     var `repeat`: RepeatRule?
     var parentId: String?
     var listId: String?

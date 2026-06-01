@@ -3,7 +3,7 @@ import { Repeat } from "./reducer";
 
 export function addTodo(
   contents = "",
-  meta?: { dueDate?: string; repeat?: Repeat; listId?: string },
+  meta?: { dueDate?: string; dueTime?: string; repeat?: Repeat; listId?: string },
 ) {
   return {
     type: "ADD_TODO",
@@ -12,6 +12,7 @@ export function addTodo(
       id: generateId(),
       completed: false,
       dueDate: meta?.dueDate,
+      dueTime: meta?.dueTime,
       repeat: meta?.repeat,
       listId: meta?.listId,
     },
@@ -48,7 +49,7 @@ export function updateTodo(id: string, contents: string) {
 
 export function updateTodoMeta(
   id: string,
-  meta: { dueDate?: string; repeat?: Repeat },
+  meta: { dueDate?: string; dueTime?: string; repeat?: Repeat },
 ) {
   return {
     type: "UPDATE_TODO_META",
@@ -73,6 +74,7 @@ export function completeTask(id: string) {
 export function completeRepeatInstance(
   parentId: string,
   instanceDueDate: string | undefined,
+  instanceDueTime: string | undefined,
   nextDueDate: string,
 ) {
   return {
@@ -81,6 +83,7 @@ export function completeRepeatInstance(
       parentId,
       instanceId: generateId(),
       instanceDueDate,
+      instanceDueTime,
       nextDueDate,
     },
   } as const;

@@ -1,5 +1,12 @@
 import { reducer } from "./reducer";
-import { addTodo, removeTodo, toggleTodo, updateTodo } from "./actions";
+import {
+  addTodo,
+  completeRepeatInstance,
+  removeTodo,
+  toggleTodo,
+  updateTodo,
+  updateTodoMeta,
+} from "./actions";
 
 describe("todo/reducer", () => {
   it("should add todo", () => {
@@ -162,6 +169,64 @@ describe("todo/reducer", () => {
         id: "5678",
         contents: "Second existing todo",
         completed: false,
+      }),
+    ]);
+  });
+
+  it("should add and update due time metadata", () => {
+    const [todo] = reducer(
+      [],
+      addTodo("Timed todo", { dueDate: "2026-06-02", dueTime: "17:00" }),
+    );
+
+    expect(todo).toEqual(
+      expect.objectContaining({
+        contents: "Timed todo",
+        dueDate: "2026-06-02",
+        dueTime: "17:00",
+      }),
+    );
+
+    expect(
+      reducer([todo], updateTodoMeta(todo.id, {
+        dueDate: "2026-06-03",
+        dueTime: "18:30",
+      })),
+    ).toEqual([
+      expect.objectContaining({
+        dueDate: "2026-06-03",
+        dueTime: "18:30",
+      }),
+    ]);
+  });
+
+  it("should preserve due time on completed repeat instances", () => {
+    expect(
+      reducer(
+        [
+          {
+            id: "parent",
+            contents: "Weekly todo",
+            completed: false,
+            dueDate: "2026-06-02",
+            dueTime: "17:00",
+            repeat: { type: "weekly", days: [2] },
+          },
+        ],
+        completeRepeatInstance("parent", "2026-06-02", "17:00", "2026-06-09"),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: "parent",
+        dueDate: "2026-06-09",
+        dueTime: "17:00",
+      }),
+      expect.objectContaining({
+        contents: "Weekly todo",
+        completed: true,
+        dueDate: "2026-06-02",
+        dueTime: "17:00",
+        parentId: "parent",
       }),
     ]);
   });

@@ -4,6 +4,7 @@ struct TodoListView: View {
     @EnvironmentObject private var store: SyncStore
     @State private var newTodo = ""
     @State private var dueDate = Date()
+    @State private var dueTime = Date()
     @State private var useDueDate = false
     @State private var repeatMode = RepeatMode.none
     @State private var selectedRepeatDays: Set<Int> = []
@@ -18,16 +19,17 @@ struct TodoListView: View {
                 guard let dueDate = item.dueDate else { return false }
                 return dueDate <= todayKey
             }
-            .sorted { ($0.dueDate ?? "") < ($1.dueDate ?? "") }
+            .sorted { Self.sortKey($0) < Self.sortKey($1) }
     }
 
     private var inbox: [TodoItem] {
         store.activeTodos
             .filter { item in
+                if itemRepeatsToday(item) { return false }
                 guard let dueDate = item.dueDate else { return true }
                 return dueDate > todayKey
             }
-            .sorted { ($0.dueDate ?? "9999-99-99") < ($1.dueDate ?? "9999-99-99") }
+            .sorted { Self.sortKey($0) < Self.sortKey($1) }
     }
 
     var body: some View {
@@ -40,6 +42,9 @@ struct TodoListView: View {
                 Toggle("Due date", isOn: $useDueDate)
                 if useDueDate {
                     DatePicker("Due", selection: $dueDate, displayedComponents: .date)
+                }
+                if useDueDate || repeatMode != .none {
+                    DatePicker("Time", selection: $dueTime, displayedComponents: .hourAndMinute)
                 }
 
                 RepeatControls(mode: $repeatMode, selectedDays: $selectedRepeatDays)
@@ -64,10 +69,12 @@ struct TodoListView: View {
         store.addTodo(
             newTodo,
             dueDate: useDueDate ? Self.dateKey(dueDate) : nil,
+            dueTime: useDueDate || repeatMode != .none ? Self.timeKey(dueTime) : nil,
             repeatRule: repeatMode.rule(days: selectedRepeatDays, fallbackDay: Calendar.current.component(.weekday, from: dueDate) - 1)
         )
         newTodo = ""
         useDueDate = false
+        dueTime = Date()
         repeatMode = .none
         selectedRepeatDays = []
     }
@@ -92,6 +99,32 @@ struct TodoListView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
+    }
+
+    static func timeKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    static func sortKey(_ item: TodoItem) -> String {
+        "\(item.dueDate ?? "9999-99-99")T\(item.dueTime ?? "99:99")"
+    }
+
+    static func displayDue(_ item: TodoItem) -> String? {
+        guard let dueDate = item.dueDate else { return item.dueTime }
+        guard let dueTime = item.dueTime else { return dueDate }
+        return "\(dueDate) \(dueTime)"
+    }
+
+    static func isOverdue(_ item: TodoItem) -> Bool {
+        guard let dueDate = item.dueDate, item.completed == false else { return false }
+        if dueDate < SyncStore.todayKey() { return true }
+        if dueDate > SyncStore.todayKey(), item.dueTime == nil { return false }
+        guard dueDate == SyncStore.todayKey(), let dueTime = item.dueTime else { return false }
+        return dueTime < timeKey(Date())
     }
 }
 
@@ -218,10 +251,10 @@ private struct TodoRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.contents)
                     .strikethrough(item.completed)
-                if let dueDate = item.dueDate {
+                if let dueDate = TodoListView.displayDue(item) {
                     Text(dueDate)
                         .font(.caption)
-                        .foregroundStyle(dueDate < SyncStore.todayKey() ? .red : .secondary)
+                        .foregroundStyle(TodoListView.isOverdue(item) ? .red : .secondary)
                 }
                 if let repeatLabel = item.repeat?.displayLabel {
                     Text(repeatLabel)
@@ -269,6 +302,7 @@ private struct TodoEditorView: View {
 
     @State private var contents: String
     @State private var dueDate: Date
+    @State private var dueTime: Date
     @State private var useDueDate: Bool
     @State private var repeatMode: RepeatMode
     @State private var selectedRepeatDays: Set<Int>
@@ -277,6 +311,7 @@ private struct TodoEditorView: View {
         self.item = item
         _contents = State(initialValue: item.contents)
         _dueDate = State(initialValue: Self.date(from: item.dueDate) ?? Date())
+        _dueTime = State(initialValue: Self.time(from: item.dueTime) ?? Date())
         _useDueDate = State(initialValue: item.dueDate != nil)
         _repeatMode = State(initialValue: RepeatMode(rule: item.repeat))
         _selectedRepeatDays = State(initialValue: Set(item.repeat?.days ?? []))
@@ -291,6 +326,9 @@ private struct TodoEditorView: View {
                     DatePicker("Due", selection: $dueDate, displayedComponents: .date)
                 }
                 RepeatControls(mode: $repeatMode, selectedDays: $selectedRepeatDays)
+                if useDueDate || repeatMode != .none {
+                    DatePicker("Time", selection: $dueTime, displayedComponents: .hourAndMinute)
+                }
             }
             .navigationTitle("Edit Task")
             .toolbar {
@@ -305,6 +343,7 @@ private struct TodoEditorView: View {
                             item,
                             contents: contents,
                             dueDate: useDueDate ? TodoListView.dateKey(dueDate) : nil,
+                            dueTime: useDueDate || repeatMode != .none ? TodoListView.timeKey(dueTime) : nil,
                             repeatRule: repeatMode.rule(
                                 days: selectedRepeatDays,
                                 fallbackDay: Calendar.current.component(.weekday, from: dueDate) - 1
@@ -324,6 +363,15 @@ private struct TodoEditorView: View {
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: key)
+    }
+
+    private static func time(from key: String?) -> Date? {
+        guard let key else { return nil }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
         return formatter.date(from: key)
     }
 }
