@@ -166,6 +166,8 @@ final class TodoNotificationStore: ObservableObject {
         switch group.filter {
         case .all:
             return true
+        case .specific:
+            return group.specificTodoIds.contains(todo.id)
         case .dueToday:
             return isDueToday(todo) || repeatsToday(todo)
         case .overdue:

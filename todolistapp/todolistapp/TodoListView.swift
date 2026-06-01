@@ -33,10 +33,6 @@ struct TodoListView: View {
     var body: some View {
         List {
             Section {
-                AppLogoHeader()
-            }
-
-            Section {
                 TextField("New task", text: $newTodo)
                     .submitLabel(.done)
                     .onSubmit(addTodo)

@@ -8,10 +8,6 @@ struct NotificationSettingsView: View {
 
     var body: some View {
         List {
-            Section {
-                AppLogoHeader()
-            }
-
             Section("Permission") {
                 HStack {
                     Text("Status")
@@ -134,26 +130,6 @@ struct NotificationSettingsView: View {
     }
 }
 
-struct AppLogoHeader: View {
-    var body: some View {
-        HStack(spacing: 12) {
-            Image("TodolistLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("To Do List")
-                    .font(.headline)
-                Text("Synced todos, notes, plans, and reminders")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
 private struct NotificationGroupRow: View {
     let group: TodoNotificationGroup
     let matches: [TodoItem]
@@ -236,6 +212,13 @@ private struct NotificationGroupEditorView: View {
 
                     if group.filter == .dueWithinDays {
                         Stepper("Within \(group.dueWithinDays) day\(group.dueWithinDays == 1 ? "" : "s")", value: $group.dueWithinDays, in: 1...30)
+                    }
+
+                    if group.filter == .specific {
+                        SpecificTodoPicker(
+                            todos: allTodos,
+                            selectedIds: $group.specificTodoIds
+                        )
                     }
 
                     Toggle("Include Completed", isOn: $group.includeCompleted)
@@ -348,6 +331,73 @@ private struct NotificationGroupEditorView: View {
     private static func minutes(from date: Date) -> Int {
         let components = Calendar.current.dateComponents([.hour, .minute], from: date)
         return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+    }
+}
+
+private struct SpecificTodoPicker: View {
+    let todos: [TodoItem]
+    @Binding var selectedIds: [String]
+
+    private var sortedTodos: [TodoItem] {
+        todos.sorted { lhs, rhs in
+            let leftDate = lhs.dueDate ?? "9999-99-99"
+            let rightDate = rhs.dueDate ?? "9999-99-99"
+            if leftDate != rightDate {
+                return leftDate < rightDate
+            }
+            return lhs.contents < rhs.contents
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Specific Todos")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(selectedIds.count) selected")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if sortedTodos.isEmpty {
+                Text("No synced todos available.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(sortedTodos) { todo in
+                    Button {
+                        toggle(todo.id)
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Image(systemName: selectedIds.contains(todo.id) ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(selectedIds.contains(todo.id) ? Color.accentColor : Color.gray)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(todo.contents)
+                                    .foregroundStyle(.primary)
+                                if let dueDate = todo.dueDate {
+                                    Text(dueDate)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func toggle(_ id: String) {
+        if selectedIds.contains(id) {
+            selectedIds.removeAll { $0 == id }
+        } else {
+            selectedIds.append(id)
+        }
     }
 }
 
