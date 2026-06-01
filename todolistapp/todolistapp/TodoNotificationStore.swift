@@ -97,6 +97,12 @@ final class TodoNotificationStore: ObservableObject {
 
         do {
             let requests = makeRequests(group: group, todos: matches)
+            guard !requests.isEmpty else {
+                status = group.useDueTimeReminders
+                    ? "No future due-time notifications for \(group.name)"
+                    : "No notifications for \(group.name)"
+                return
+            }
             for request in requests {
                 try await UNUserNotificationCenter.current().add(request)
             }
@@ -172,7 +178,7 @@ final class TodoNotificationStore: ObservableObject {
             return isDueToday(todo) || repeatsToday(todo)
         case .overdue:
             guard let dueDate = todo.dueDate else { return false }
-            return dueDate < Self.todayKey() || (dueDate == Self.todayKey() && (todo.dueTime ?? "99:99") < Self.timeKey())
+            return dueDate < Self.todayKey() || (dueDate == Self.todayKey() && (todo.dueTime ?? SyncStore.defaultDueTime) < Self.timeKey())
         case .inbox:
             guard let dueDate = todo.dueDate else { return true }
             return dueDate > Self.todayKey()
@@ -207,6 +213,10 @@ final class TodoNotificationStore: ObservableObject {
     }
 
     private func makeRequests(group: TodoNotificationGroup, todos: [TodoItem]) -> [UNNotificationRequest] {
+        if group.useDueTimeReminders {
+            return makeDueTimeRequests(group: group, todos: todos)
+        }
+
         let selectedTodos = Array(todos.prefix(group.maxTasks))
         let times = group.deliveryMinutes.isEmpty ? [9 * 60] : group.deliveryMinutes
         var requests: [UNNotificationRequest] = []
@@ -233,6 +243,38 @@ final class TodoNotificationStore: ObservableObject {
         return Array(requests.prefix(min(64, max(1, group.maxNotifications))))
     }
 
+    private func makeDueTimeRequests(group: TodoNotificationGroup, todos: [TodoItem]) -> [UNNotificationRequest] {
+        let selectedTodos = Array(todos.prefix(group.maxTasks))
+        let offsets = (group.dueReminderOffsetsMinutes.isEmpty ? [60] : group.dueReminderOffsetsMinutes)
+            .map { max(0, $0) }
+            .sorted()
+        let limit = min(64, max(1, group.maxNotifications))
+        var requests: [UNNotificationRequest] = []
+
+        for todoIndex in selectedTodos.indices {
+            guard let dueAt = Self.dateTime(for: selectedTodos[todoIndex]) else { continue }
+
+            for offsetIndex in offsets.indices {
+                let offset = offsets[offsetIndex]
+                guard let notifyAt = Calendar.current.date(byAdding: .minute, value: -offset, to: dueAt),
+                      notifyAt > Date() else {
+                    continue
+                }
+
+                let content = makeContent(group: group, todos: [selectedTodos[todoIndex]])
+                let trigger = makeOneTimeTrigger(at: notifyAt)
+                let id = "\(identifierPrefix)-\(group.id)-due-\(todoIndex)-\(offsetIndex)"
+                requests.append(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+
+                if requests.count >= limit {
+                    return requests
+                }
+            }
+        }
+
+        return requests
+    }
+
     private func makeContent(group: TodoNotificationGroup, todos: [TodoItem]) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.sound = .default
@@ -244,7 +286,7 @@ final class TodoNotificationStore: ObservableObject {
         case .detailed:
             content.body = todos.map { todo in
                 if let dueDate = todo.dueDate {
-                    let due = todo.dueTime.map { "\(dueDate) \($0)" } ?? dueDate
+                    let due = "\(dueDate) \(todo.dueTime ?? SyncStore.defaultDueTime)"
                     return "\(todo.contents) (\(due))"
                 }
                 return todo.contents
@@ -288,6 +330,11 @@ final class TodoNotificationStore: ObservableObject {
         return Calendar.current.date(byAdding: .day, value: 1, to: candidate) ?? candidate
     }
 
+    private func makeOneTimeTrigger(at date: Date) -> UNCalendarNotificationTrigger {
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        return UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+    }
+
     private func removeScheduledNotifications(groupId: String) async {
         let center = UNUserNotificationCenter.current()
         let requests = await center.pendingNotificationRequests()
@@ -328,12 +375,12 @@ final class TodoNotificationStore: ObservableObject {
     }
 
     private static func sortKey(_ todo: TodoItem) -> String {
-        "\(todo.dueDate ?? "9999-99-99")T\(todo.dueTime ?? "99:99")"
+        "\(todo.dueDate ?? "9999-99-99")T\(todo.dueTime ?? SyncStore.defaultDueTime)"
     }
 
     private static func dateTime(for todo: TodoItem) -> Date? {
         guard let dueDate = todo.dueDate else { return nil }
-        let dueTime = todo.dueTime ?? "00:00"
+        let dueTime = todo.dueTime ?? SyncStore.defaultDueTime
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")

@@ -28,6 +28,8 @@ struct TodoNotificationGroup: Codable, Identifiable, Equatable {
     var minuteSpacing: Int
     var repeatsDaily: Bool
     var deliveryMinutes: [Int]
+    var useDueTimeReminders: Bool
+    var dueReminderOffsetsMinutes: [Int]
     var titlePrefix: String
     var bodyStyle: NotificationBodyStyle
 
@@ -46,6 +48,8 @@ struct TodoNotificationGroup: Codable, Identifiable, Equatable {
         minuteSpacing: Int = 3,
         repeatsDaily: Bool = true,
         deliveryMinutes: [Int] = [9 * 60],
+        useDueTimeReminders: Bool = false,
+        dueReminderOffsetsMinutes: [Int] = [60],
         titlePrefix: String = "Todo",
         bodyStyle: NotificationBodyStyle = .compact
     ) {
@@ -63,6 +67,8 @@ struct TodoNotificationGroup: Codable, Identifiable, Equatable {
         self.minuteSpacing = minuteSpacing
         self.repeatsDaily = repeatsDaily
         self.deliveryMinutes = deliveryMinutes
+        self.useDueTimeReminders = useDueTimeReminders
+        self.dueReminderOffsetsMinutes = dueReminderOffsetsMinutes
         self.titlePrefix = titlePrefix
         self.bodyStyle = bodyStyle
     }
@@ -83,6 +89,8 @@ struct TodoNotificationGroup: Codable, Identifiable, Equatable {
         minuteSpacing = try container.decodeIfPresent(Int.self, forKey: .minuteSpacing) ?? 3
         repeatsDaily = try container.decodeIfPresent(Bool.self, forKey: .repeatsDaily) ?? true
         deliveryMinutes = try container.decodeIfPresent([Int].self, forKey: .deliveryMinutes) ?? [9 * 60]
+        useDueTimeReminders = try container.decodeIfPresent(Bool.self, forKey: .useDueTimeReminders) ?? false
+        dueReminderOffsetsMinutes = try container.decodeIfPresent([Int].self, forKey: .dueReminderOffsetsMinutes) ?? [60]
         titlePrefix = try container.decodeIfPresent(String.self, forKey: .titlePrefix) ?? "Todo"
         bodyStyle = try container.decodeIfPresent(NotificationBodyStyle.self, forKey: .bodyStyle) ?? .compact
     }

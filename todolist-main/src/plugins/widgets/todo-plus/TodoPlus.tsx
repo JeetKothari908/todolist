@@ -22,6 +22,7 @@ import { calculateCappedHeights } from "../../../hooks/calculateCappedHeights";
 import "./TodoPlus.sass";
 
 const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const defaultDueTime = "23:59";
 
 const getYmd = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
@@ -36,13 +37,13 @@ const parseDate = (value?: string) => {
 
 const parseDueDateTime = (dueDate?: string, dueTime?: string) => {
   if (!dueDate) return null;
-  const time = dueTime && /^\d{2}:\d{2}$/.test(dueTime) ? dueTime : "00:00";
+  const time = dueTime && /^\d{2}:\d{2}$/.test(dueTime) ? dueTime : defaultDueTime;
   const parsed = new Date(`${dueDate}T${time}:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
 const dueSortKey = (dueDate?: string, dueTime?: string) =>
-  dueDate ? `${dueDate}T${dueTime ?? "99:99"}` : "";
+  dueDate ? `${dueDate}T${dueTime ?? defaultDueTime}` : "";
 
 const formatTime = (time?: string) => {
   if (!time || !/^\d{2}:\d{2}$/.test(time)) return null;
@@ -170,7 +171,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
       return;
     }
     const finalRepeat = normalizeRepeat(draftItemMeta.repeat);
-    const finalDueTime = draftItemMeta.dueDate || finalRepeat ? draftItemMeta.dueTime : undefined;
+    const finalDueTime = draftItemMeta.dueDate || finalRepeat
+      ? draftItemMeta.dueTime ?? defaultDueTime
+      : undefined;
     if (
       current.dueDate !== draftItemMeta.dueDate ||
       current.dueTime !== finalDueTime ||
@@ -294,7 +297,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     const trimmed = input.trim();
     if (!trimmed) return;
     activeListRef.current = dueDate === todayYmd ? 0 : 1;
-    dispatch(addTodo(trimmed, { dueDate, dueTime: dueDate || repeat ? dueTime : undefined, repeat, listId: selectedListId }));
+    dispatch(addTodo(trimmed, { dueDate, dueTime: dueDate || repeat ? dueTime ?? defaultDueTime : undefined, repeat, listId: selectedListId }));
     setInput("");
     setDueDate(undefined);
     setDueTime(undefined);
@@ -307,7 +310,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     if (!trimmed) return false;
     const finalDueDate = meta?.dueDate ?? dueDate;
     const finalRepeat = meta?.repeat ?? repeat;
-    const finalDueTime = finalDueDate || finalRepeat ? (meta?.dueTime ?? dueTime) : undefined;
+    const finalDueTime = finalDueDate || finalRepeat ? (meta?.dueTime ?? dueTime ?? defaultDueTime) : undefined;
     activeListRef.current = finalDueDate === todayYmd ? 0 : 1;
     dispatch(
       addTodo(trimmed, {
@@ -446,7 +449,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     item.dueDate ?? (item.repeat ? getRepeatDerivedDueDate(item.repeat) : undefined);
 
   const getTaskDisplayDueTime = (item: State[number]) =>
-    getTaskDisplayDueDate(item) ? item.dueTime : undefined;
+    getTaskDisplayDueDate(item) ? item.dueTime ?? defaultDueTime : undefined;
 
   const getRepeatDays = (item: State[number]) => {
     if (!item.repeat) return null;
@@ -464,8 +467,9 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
     const displayDueDate = getTaskDisplayDueDate(item);
     if (!displayDueDate || item.completed) return false;
     if (displayDueDate < todayYmd) return true;
-    if (displayDueDate > todayYmd || !item.dueTime) return false;
-    const dueAt = parseDueDateTime(displayDueDate, item.dueTime);
+    const displayDueTime = getTaskDisplayDueTime(item);
+    if (displayDueDate > todayYmd || !displayDueTime) return false;
+    const dueAt = parseDueDateTime(displayDueDate, displayDueTime);
     return dueAt ? dueAt < today : false;
   };
 
@@ -602,7 +606,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             value={currentDueDate ?? ""}
             onChange={(event) => {
               const nextDueDate = event.target.value || undefined;
-              const nextDueTime = nextDueDate || currentRepeat ? currentDueTime : undefined;
+              const nextDueTime = nextDueDate || currentRepeat ? currentDueTime ?? defaultDueTime : undefined;
               onDueDateChange?.(nextDueDate);
               if (!nextDueDate) onDueTimeChange?.(undefined);
               onClose?.({ dueDate: nextDueDate, dueTime: nextDueTime, repeat: currentRepeat });
@@ -615,7 +619,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
         <input
           className="time-input"
           type="time"
-          value={currentDueTime ?? ""}
+          value={currentDueDate || currentRepeat ? currentDueTime ?? defaultDueTime : ""}
           disabled={!currentDueDate && !currentRepeat}
           onChange={(event) => {
             const nextDueTime = event.target.value || undefined;
@@ -627,7 +631,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             const nextDueTime = event.currentTarget.value || undefined;
             const next = {
               dueDate: currentDueDate,
-              dueTime: currentDueDate || currentRepeat ? nextDueTime : undefined,
+              dueTime: currentDueDate || currentRepeat ? nextDueTime ?? defaultDueTime : undefined,
               repeat: currentRepeat,
             };
             onDueTimeSubmit?.(next);
@@ -678,7 +682,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   // Repeat-derived due date is displayed independently from manual dueDate.
                 }
                 if (option === "daily" || option === "none") {
-                  onClose?.({ dueDate: currentDueDate, dueTime: currentDueDate || nextRepeat ? currentDueTime : undefined, repeat: nextRepeat });
+                  onClose?.({ dueDate: currentDueDate, dueTime: currentDueDate || nextRepeat ? currentDueTime ?? defaultDueTime : undefined, repeat: nextRepeat });
                 }
               }}
             >
@@ -713,7 +717,7 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                     if (isWeekly) {
                       const nextRepeat: Repeat = { type: "weekly", days: [index] };
                       onRepeatChange(nextRepeat);
-                      onClose?.({ dueDate: currentDueDate, dueTime: currentDueDate || nextRepeat ? currentDueTime : undefined, repeat: nextRepeat });
+                      onClose?.({ dueDate: currentDueDate, dueTime: currentDueDate || nextRepeat ? currentDueTime ?? defaultDueTime : undefined, repeat: nextRepeat });
                       return;
                     }
                     onRepeatChange({
@@ -934,7 +938,8 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
                   ? (
                       next?.dueTime ??
                       draftItemMeta?.dueTime ??
-                      item.dueTime
+                      item.dueTime ??
+                      defaultDueTime
                     )
                   : undefined;
                 if (

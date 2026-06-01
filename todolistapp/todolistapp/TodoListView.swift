@@ -4,7 +4,7 @@ struct TodoListView: View {
     @EnvironmentObject private var store: SyncStore
     @State private var newTodo = ""
     @State private var dueDate = Date()
-    @State private var dueTime = Date()
+    @State private var dueTime = Self.defaultDueTimeDate()
     @State private var useDueDate = false
     @State private var repeatMode = RepeatMode.none
     @State private var selectedRepeatDays: Set<Int> = []
@@ -74,7 +74,7 @@ struct TodoListView: View {
         )
         newTodo = ""
         useDueDate = false
-        dueTime = Date()
+        dueTime = Self.defaultDueTimeDate()
         repeatMode = .none
         selectedRepeatDays = []
     }
@@ -109,21 +109,26 @@ struct TodoListView: View {
         return formatter.string(from: date)
     }
 
+    static func defaultDueTimeDate() -> Date {
+        let components = DateComponents(hour: 23, minute: 59)
+        return Calendar.current.nextDate(after: Date(), matching: components, matchingPolicy: .nextTimePreservingSmallerComponents) ?? Date()
+    }
+
     static func sortKey(_ item: TodoItem) -> String {
-        "\(item.dueDate ?? "9999-99-99")T\(item.dueTime ?? "99:99")"
+        "\(item.dueDate ?? "9999-99-99")T\(item.dueTime ?? SyncStore.defaultDueTime)"
     }
 
     static func displayDue(_ item: TodoItem) -> String? {
         guard let dueDate = item.dueDate else { return item.dueTime }
-        guard let dueTime = item.dueTime else { return dueDate }
-        return "\(dueDate) \(dueTime)"
+        return "\(dueDate) \(item.dueTime ?? SyncStore.defaultDueTime)"
     }
 
     static func isOverdue(_ item: TodoItem) -> Bool {
         guard let dueDate = item.dueDate, item.completed == false else { return false }
         if dueDate < SyncStore.todayKey() { return true }
         if dueDate > SyncStore.todayKey(), item.dueTime == nil { return false }
-        guard dueDate == SyncStore.todayKey(), let dueTime = item.dueTime else { return false }
+        guard dueDate == SyncStore.todayKey() else { return false }
+        let dueTime = item.dueTime ?? SyncStore.defaultDueTime
         return dueTime < timeKey(Date())
     }
 }
@@ -311,7 +316,7 @@ private struct TodoEditorView: View {
         self.item = item
         _contents = State(initialValue: item.contents)
         _dueDate = State(initialValue: Self.date(from: item.dueDate) ?? Date())
-        _dueTime = State(initialValue: Self.time(from: item.dueTime) ?? Date())
+        _dueTime = State(initialValue: Self.time(from: item.dueTime) ?? TodoListView.defaultDueTimeDate())
         _useDueDate = State(initialValue: item.dueDate != nil)
         _repeatMode = State(initialValue: RepeatMode(rule: item.repeat))
         _selectedRepeatDays = State(initialValue: Set(item.repeat?.days ?? []))

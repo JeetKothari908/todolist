@@ -157,6 +157,14 @@ private struct NotificationGroupRow: View {
     }
 
     private var scheduleSummary: String {
+        if group.useDueTimeReminders {
+            let offsets = group.dueReminderOffsetsMinutes
+                .sorted()
+                .map(Self.offsetString)
+                .joined(separator: ", ")
+            return "\(offsets.isEmpty ? "No offsets" : offsets) / before due / max \(group.maxNotifications)"
+        }
+
         let times = group.deliveryMinutes
             .sorted()
             .map(Self.timeString)
@@ -169,6 +177,14 @@ private struct NotificationGroupRow: View {
         let hour = minutes / 60
         let minute = minutes % 60
         return String(format: "%02d:%02d", hour, minute)
+    }
+
+    private static func offsetString(_ minutes: Int) -> String {
+        if minutes == 0 { return "At due time" }
+        if minutes < 60 { return "\(minutes)m before" }
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        return remainder == 0 ? "\(hours)h before" : "\(hours)h \(remainder)m before"
     }
 }
 
@@ -227,12 +243,18 @@ private struct NotificationGroupEditorView: View {
                 }
 
                 Section("Delivery") {
-                    Toggle("One Notification Per Task", isOn: $group.oneNotificationPerTask)
+                    Toggle("Before Due Time", isOn: $group.useDueTimeReminders)
+
+                    if !group.useDueTimeReminders {
+                        Toggle("One Notification Per Task", isOn: $group.oneNotificationPerTask)
+                    }
                     Stepper("Max Notifications: \(group.maxNotifications)", value: $group.maxNotifications, in: 1...64)
-                    if group.oneNotificationPerTask {
+                    if group.oneNotificationPerTask && !group.useDueTimeReminders {
                         Stepper("Spacing: \(group.minuteSpacing) min", value: $group.minuteSpacing, in: 1...60)
                     }
-                    Toggle("Repeat Daily", isOn: $group.repeatsDaily)
+                    if !group.useDueTimeReminders {
+                        Toggle("Repeat Daily", isOn: $group.repeatsDaily)
+                    }
                     Picker("Body Style", selection: $group.bodyStyle) {
                         ForEach(NotificationBodyStyle.allCases) { style in
                             Text(style.rawValue).tag(style)
@@ -240,6 +262,33 @@ private struct NotificationGroupEditorView: View {
                     }
                 }
 
+                if group.useDueTimeReminders {
+                    Section("Due Time Offsets") {
+                        ForEach(group.dueReminderOffsetsMinutes.indices, id: \.self) { index in
+                            Stepper(
+                                Self.offsetLabel(group.dueReminderOffsetsMinutes[index]),
+                                value: $group.dueReminderOffsetsMinutes[index],
+                                in: 0...10080,
+                                step: 15
+                            )
+                        }
+
+                        Button {
+                            group.dueReminderOffsetsMinutes.append(60)
+                            group.dueReminderOffsetsMinutes.sort()
+                        } label: {
+                            Label("Add Offset", systemImage: "plus")
+                        }
+
+                        if group.dueReminderOffsetsMinutes.count > 1 {
+                            Button(role: .destructive) {
+                                group.dueReminderOffsetsMinutes.removeLast()
+                            } label: {
+                                Label("Remove Last Offset", systemImage: "minus.circle")
+                            }
+                        }
+                    }
+                } else {
                 Section("Times") {
                     ForEach(group.deliveryMinutes.indices, id: \.self) { index in
                         HStack {
@@ -266,6 +315,7 @@ private struct NotificationGroupEditorView: View {
                     } label: {
                         Label("Add Time", systemImage: "plus")
                     }
+                }
                 }
 
                 Section("Preview") {
@@ -333,9 +383,20 @@ private struct NotificationGroupEditorView: View {
         return (components.hour ?? 0) * 60 + (components.minute ?? 0)
     }
 
+    private static func offsetLabel(_ minutes: Int) -> String {
+        if minutes == 0 { return "At due time" }
+        if minutes < 60 { return "\(minutes) min before due" }
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        if remainder == 0 {
+            return "\(hours) hour\(hours == 1 ? "" : "s") before due"
+        }
+        return "\(hours)h \(remainder)m before due"
+    }
+
     private static func displayDue(_ todo: TodoItem) -> String? {
         guard let dueDate = todo.dueDate else { return todo.dueTime }
-        return todo.dueTime.map { "\(dueDate) \($0)" } ?? dueDate
+        return "\(dueDate) \(todo.dueTime ?? SyncStore.defaultDueTime)"
     }
 }
 
@@ -344,19 +405,21 @@ private struct SpecificTodoPicker: View {
     @Binding var selectedIds: [String]
 
     private var sortedTodos: [TodoItem] {
-        todos.sorted { lhs, rhs in
-            let leftDate = lhs.dueDate ?? "9999-99-99"
-            let rightDate = rhs.dueDate ?? "9999-99-99"
-            let leftTime = lhs.dueTime ?? "99:99"
-            let rightTime = rhs.dueTime ?? "99:99"
-            if leftDate != rightDate {
-                return leftDate < rightDate
+        todos
+            .filter { !$0.completed && $0.dismissed != true }
+            .sorted { lhs, rhs in
+                let leftDate = lhs.dueDate ?? "9999-99-99"
+                let rightDate = rhs.dueDate ?? "9999-99-99"
+                let leftTime = lhs.dueTime ?? SyncStore.defaultDueTime
+                let rightTime = rhs.dueTime ?? SyncStore.defaultDueTime
+                if leftDate != rightDate {
+                    return leftDate < rightDate
+                }
+                if leftTime != rightTime {
+                    return leftTime < rightTime
+                }
+                return lhs.contents < rhs.contents
             }
-            if leftTime != rightTime {
-                return leftTime < rightTime
-            }
-            return lhs.contents < rhs.contents
-        }
     }
 
     var body: some View {
@@ -412,7 +475,7 @@ private struct SpecificTodoPicker: View {
 
     private func displayDue(_ todo: TodoItem) -> String? {
         guard let dueDate = todo.dueDate else { return todo.dueTime }
-        return todo.dueTime.map { "\(dueDate) \($0)" } ?? dueDate
+        return "\(dueDate) \(todo.dueTime ?? SyncStore.defaultDueTime)"
     }
 }
 

@@ -25,6 +25,7 @@ final class SyncStore: ObservableObject {
     private var bootstrapChanges: [RemoteChange] = []
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    static let defaultDueTime = "23:59"
 
     init() {
         todos = Self.load(TodoData.self, key: "cache.todos") ?? TodoData()
@@ -66,7 +67,7 @@ final class SyncStore: ObservableObject {
                 completed: false,
                 dismissed: false,
                 dueDate: dueDate,
-                dueTime: dueDate != nil || repeatRule != nil ? dueTime : nil,
+                dueTime: dueDate != nil || repeatRule != nil ? (dueTime ?? Self.defaultDueTime) : nil,
                 repeat: repeatRule
             )
         )
@@ -82,7 +83,7 @@ final class SyncStore: ObservableObject {
         }
         todos.items[index].contents = trimmed
         todos.items[index].dueDate = dueDate
-        todos.items[index].dueTime = dueDate != nil || repeatRule != nil ? dueTime : nil
+        todos.items[index].dueTime = dueDate != nil || repeatRule != nil ? (dueTime ?? Self.defaultDueTime) : nil
         todos.items[index].repeat = repeatRule
         persist()
         Task { await pushTodos() }
