@@ -38,6 +38,11 @@ struct TodoItem: Codable, Identifiable, Equatable {
 struct RepeatRule: Codable, Equatable {
     var type: String
     var days: [Int]?
+
+    init(type: String, days: [Int]? = nil) {
+        self.type = type
+        self.days = days
+    }
 }
 
 struct NotesData: Codable, Equatable {

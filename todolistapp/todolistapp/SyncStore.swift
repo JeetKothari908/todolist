@@ -56,7 +56,7 @@ final class SyncStore: ObservableObject {
         }
     }
 
-    func addTodo(_ contents: String, dueDate: String? = nil) {
+    func addTodo(_ contents: String, dueDate: String? = nil, repeatRule: RepeatRule? = nil) {
         let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         todos.items.append(
@@ -65,9 +65,23 @@ final class SyncStore: ObservableObject {
                 contents: trimmed,
                 completed: false,
                 dismissed: false,
-                dueDate: dueDate
+                dueDate: dueDate,
+                repeat: repeatRule
             )
         )
+        persist()
+        Task { await pushTodos() }
+    }
+
+    func updateTodo(_ item: TodoItem, contents: String, dueDate: String?, repeatRule: RepeatRule?) {
+        let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let index = todos.items.firstIndex(where: { $0.id == item.id }) else {
+            return
+        }
+        todos.items[index].contents = trimmed
+        todos.items[index].dueDate = dueDate
+        todos.items[index].repeat = repeatRule
         persist()
         Task { await pushTodos() }
     }
@@ -105,9 +119,9 @@ final class SyncStore: ObservableObject {
             NoteNode(
                 id: id,
                 type: "note",
-                name: trimmedTitle.isEmpty ? "Untitled Note" : trimmedTitle,
+                name: Self.normalizedNoteTitle(title: trimmedTitle, contents: trimmedContents),
                 parentId: nil,
-                contents: trimmedContents
+                contents: Self.noteContents(title: trimmedTitle, body: contents)
             )
         )
         notes.selectedNoteId = id
@@ -118,8 +132,9 @@ final class SyncStore: ObservableObject {
 
     func updateNote(_ note: NoteNode, title: String, contents: String) {
         guard let index = notes.items.firstIndex(where: { $0.id == note.id }) else { return }
-        notes.items[index].name = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled Note" : title
-        notes.items[index].contents = contents
+        let normalizedTitle = Self.normalizedNoteTitle(title: title, contents: contents)
+        notes.items[index].name = normalizedTitle
+        notes.items[index].contents = Self.noteContents(title: normalizedTitle, body: contents)
         notes.selectedNoteId = note.id
         persist()
         Task { await pushNotes() }
@@ -318,6 +333,45 @@ final class SyncStore: ObservableObject {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date())
+    }
+
+    static func splitNote(_ note: NoteNode) -> (title: String, body: String) {
+        let raw = note.contents ?? ""
+        if note.name != "Untitled Note" && !raw.hasPrefix(note.name) {
+            return (note.name, raw)
+        }
+        guard let newline = raw.firstIndex(of: "\n") else {
+            let title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if title.isEmpty || title == note.name {
+                return (note.name == "Untitled Note" ? "" : note.name, title.isEmpty ? raw : "")
+            }
+            return (title, "")
+        }
+        let title = String(raw[..<newline]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = String(raw[raw.index(after: newline)...])
+        return (title.isEmpty ? note.name : title, body)
+    }
+
+    static func normalizedNoteTitle(title: String, contents: String) -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty {
+            return trimmedTitle
+        }
+
+        let firstLine = contents
+            .split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+            .first
+            .map(String.init)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return firstLine.isEmpty ? "Untitled Note" : firstLine
+    }
+
+    static func noteContents(title: String, body: String) -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else {
+            return body
+        }
+        return body.isEmpty ? trimmedTitle : "\(trimmedTitle)\n\(body)"
     }
 
     private func persist() {

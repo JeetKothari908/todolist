@@ -10,14 +10,15 @@ struct NotesView: View {
             if store.liveNotes.isEmpty {
                 ContentUnavailableView("No Notes", systemImage: "note.text", description: Text("Create a note here and it will sync to the extension."))
             } else {
-                ForEach(store.liveNotes.sorted { $0.name < $1.name }) { note in
+                ForEach(store.liveNotes.sorted { SyncStore.splitNote($0).title < SyncStore.splitNote($1).title }) { note in
+                    let split = SyncStore.splitNote(note)
                     Button {
                         editorNote = note
                     } label: {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(note.name)
+                            Text(split.title.isEmpty ? "Untitled Note" : split.title)
                                 .font(.headline)
-                            Text(note.contents ?? "")
+                            Text(split.body)
                                 .lineLimit(2)
                                 .foregroundStyle(.secondary)
                         }
@@ -92,8 +93,9 @@ struct NoteEditorView: View {
         }
         .onAppear {
             if case .edit(let note) = mode {
-                title = note.name
-                contents = note.contents ?? ""
+                let split = SyncStore.splitNote(note)
+                title = split.title
+                contents = split.body
             }
         }
     }
