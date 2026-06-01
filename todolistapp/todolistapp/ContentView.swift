@@ -25,6 +25,13 @@ struct ContentView: View {
             .tabItem {
                 Label("Plan", systemImage: "calendar")
             }
+
+            NavigationStack {
+                NotificationSettingsView()
+            }
+            .tabItem {
+                Label("Alerts", systemImage: "bell.badge")
+            }
         }
         .task {
             await store.refresh()
