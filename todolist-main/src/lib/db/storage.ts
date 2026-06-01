@@ -224,8 +224,19 @@ export const remoteSync = async (
       `/v1/stores/${storePath}`,
     );
     console.info("[todo-sync] remote changes:", snapshot.changes.length);
+    const legacyIosWidgetDeletions = snapshot.changes
+      .filter(isLegacyIosWidgetRecord)
+      .map(({ key }) => ({ key, deleted: true }));
+    const snapshotChanges = snapshot.changes.filter(
+      (change) => !isLegacyIosWidgetRecord(change),
+    );
+    if (legacyIosWidgetDeletions.length > 0) {
+      DB.atomic(db, (trx) => {
+        for (const { key } of legacyIosWidgetDeletions) DB.del(trx, key);
+      });
+    }
 
-    if (snapshot.changes.length === 0) {
+    if (snapshotChanges.length === 0) {
       const seedChanges: RemoteChange[] = [];
       for (const [key, value] of db) {
         if (value !== undefined) seedChanges.push({ key, value });
@@ -240,11 +251,23 @@ export const remoteSync = async (
       console.info("[todo-sync] seeded remote changes:", seedChanges.length);
     } else {
       DB.atomic(db, (trx) => {
-        for (const change of snapshot.changes) {
+        for (const change of snapshotChanges) {
           if (change.deleted) DB.del(trx, change.key);
           else DB.put(trx, change.key, change.value);
         }
       });
+    }
+    if (legacyIosWidgetDeletions.length > 0) {
+      await request(`/v1/stores/${storePath}/changes`, {
+        method: "POST",
+        body: JSON.stringify({
+          changes: legacyIosWidgetDeletions,
+        }),
+      });
+      console.info(
+        "[todo-sync] removed legacy iOS widget records:",
+        legacyIosWidgetDeletions.length,
+      );
     }
   } catch (error) {
     const syncError = mapError("Cannot sync initial snapshot", error);
@@ -319,6 +342,16 @@ const isSyncQuotaError = (error: unknown): boolean =>
 
 const delay = (timeout: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, timeout));
+
+const isLegacyIosWidgetRecord = (change: RemoteChange): boolean => {
+  if (change.deleted || change.key !== "widget/default-plan") return false;
+  return (
+    typeof change.value === "object" &&
+    change.value !== null &&
+    "key" in change.value &&
+    change.value.key === "widget/planOfDay"
+  );
+};
 
 const batch = (
   flush: (batch: Iterable<DB.Change>) => void,
