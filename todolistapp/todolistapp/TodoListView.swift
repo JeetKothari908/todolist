@@ -50,7 +50,6 @@ struct TodoListView: View {
 
             TodoSection(title: "Due Today", items: dueToday)
             TodoSection(title: "Inbox", items: inbox)
-            TodoSection(title: "Finished", items: store.finishedTodos)
         }
         .navigationTitle("Todos")
         .toolbar {
@@ -124,8 +123,7 @@ private enum RepeatMode: String, CaseIterable, Identifiable {
         case .daily:
             return RepeatRule(type: "daily")
         case .weekly:
-            let sorted = days.sorted()
-            return RepeatRule(type: "weekly", days: sorted.isEmpty ? [fallbackDay] : sorted)
+            return RepeatRule(type: "weekly", days: [days.sorted().first ?? fallbackDay])
         case .custom:
             let sorted = days.sorted()
             return sorted.isEmpty ? nil : RepeatRule(type: "custom", days: sorted)
@@ -146,9 +144,9 @@ private struct RepeatControls: View {
             }
         }
 
-        if mode == .custom {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Repeat Days")
+        if mode == .weekly || mode == .custom {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(mode == .weekly ? "Repeat Day" : "Repeat Days")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 HStack {
@@ -156,17 +154,27 @@ private struct RepeatControls: View {
                         Button {
                             if selectedDays.contains(index) {
                                 selectedDays.remove(index)
+                            } else if mode == .weekly {
+                                selectedDays = [index]
                             } else {
                                 selectedDays.insert(index)
                             }
                         } label: {
                             Text(dayNames[index])
-                                .font(.caption)
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
+                        .controlSize(.mini)
                         .tint(selectedDays.contains(index) ? Color.accentColor : Color.gray)
                     }
+                }
+            }
+            .onChange(of: mode) { _, nextMode in
+                if nextMode == .weekly, selectedDays.count > 1, let first = selectedDays.sorted().first {
+                    selectedDays = [first]
                 }
             }
         }

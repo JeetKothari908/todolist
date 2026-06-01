@@ -20,28 +20,6 @@ struct PlanOfDayView: View {
                         store.updatePlan(date: selectedKey, contents: newValue)
                     }
             }
-
-            Section("Saved Days") {
-                let days = store.plan.plans.keys.sorted(by: >)
-                if days.isEmpty {
-                    Text("No plans yet")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(days, id: \.self) { day in
-                        Button {
-                            selectedDate = Self.date(from: day) ?? Date()
-                        } label: {
-                            HStack {
-                                Text(day)
-                                Spacer()
-                                Text(store.plan.plans[day] ?? "")
-                                    .lineLimit(1)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
         }
         .navigationTitle("Plan of the Day")
         .toolbar {
@@ -66,11 +44,4 @@ struct PlanOfDayView: View {
         }
     }
 
-    private static func date(from key: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: key)
-    }
 }
