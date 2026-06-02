@@ -2,13 +2,13 @@
 
 <p align="center">A beautiful, customisable New Tab page for Firefox and Chrome.</p>
 
-![Tabliss Screenshot](screenshot.png)
+![Todo List](../logo.png)
 
 <p align="center"><a href="https://tabliss.io">https://tabliss.io</a></p>
 
 ## Usage
 
-Install dependencies with `npm install` before running the following scripts.
+Run these commands from `todolist-extension` after installing dependencies with `npm install`.
 
 - `npm run dev[:target]` Local development server
 - `npm run build[:target]` Production build
@@ -23,7 +23,7 @@ This fork can sync extension state through a private Raspberry Pi server exposed
 
 ### Raspberry Pi server
 
-Copy `server/` to the Pi, then run:
+Copy the repo-level `server/` folder to the Pi, then run:
 
 ```bash
 cd ~/todolist-sync/server
@@ -69,14 +69,14 @@ SYNC_SERVER_URL=https://raspberrypi.tail2db278.ts.net
 SYNC_AUTH_TOKEN=jfiweokgerhotrwhtr
 ```
 
-Build Chromium:
+Build Chromium from `todolist-extension`:
 
 ```powershell
 npm install
 npm run build:chromium
 ```
 
-Load `dist/chromium` as an unpacked extension from `chrome://extensions`.
+Load `todolist-extension/dist/chromium` as an unpacked extension from `chrome://extensions`.
 
 ### Sync debugging
 
@@ -88,7 +88,7 @@ Open DevTools on the new-tab page and check the console for `[todo-sync]` logs. 
 [todo-sync] request: GET /v1/stores/tabliss/config
 ```
 
-If those logs do not appear, reload or remove and re-add the unpacked extension from the rebuilt `dist/chromium` directory.
+If those logs do not appear, reload or remove and re-add the unpacked extension from the rebuilt `todolist-extension/dist/chromium` directory.
 
 ## Translations
 

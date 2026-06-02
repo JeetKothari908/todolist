@@ -40,7 +40,7 @@ Follow the login URL that Tailscale prints.
 Run this from Windows PowerShell in the repo folder:
 
 ```powershell
-scp -r .\todolist-main\server jkothari@raspberrypi.local:~/todolist-sync/
+scp -r .\server jkothari@raspberrypi.local:~/todolist-sync/
 ```
 
 6. On the Pi, create the Python environment and install the server dependencies:
@@ -193,7 +193,7 @@ curl.exe "https://raspberrypi.tail2db278.ts.net/health"
 5. From the repo folder, install dependencies and build:
 
 ```powershell
-cd "PATH\TO\todolist-main"
+cd "PATH\TO\todolist-extension"
 npm install
 npm run build:chromium
 ```
@@ -210,7 +210,7 @@ SYNC_AUTH_TOKEN=jfiweokgerhotrwhtr
 Open `chrome://extensions`, enable Developer mode, click "Load unpacked", and select:
 
 ```text
-PATH\TO\todolist-main\dist\chromium
+PATH\TO\todolist-extension\dist\chromium
 ```
 
 7. Open a new tab. It should pull the latest state from the Pi.
@@ -240,7 +240,7 @@ A healthy startup looks like:
 [todo-sync] request: GET /v1/stores/tabliss/config
 ```
 
-If no `[todo-sync]` logs appear, Chrome is probably running an older unpacked extension. Remove it from `chrome://extensions`, rebuild with `npm run build:chromium`, and load `dist/chromium` again.
+If no `[todo-sync]` logs appear, Chrome is probably running an older unpacked extension. Remove it from `chrome://extensions`, rebuild with `npm run build:chromium` from `todolist-extension`, and load `todolist-extension/dist/chromium` again.
 
 If Tailscale Serve stops working, rerun:
 
@@ -248,4 +248,3 @@ If Tailscale Serve stops working, rerun:
 sudo tailscale serve --https=443 http://127.0.0.1:8787
 tailscale serve status
 ```
-

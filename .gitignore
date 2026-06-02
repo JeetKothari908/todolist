@@ -1,0 +1,6 @@
+/server/*.sqlite3
+/server/*.sqlite
+/server/__pycache__/
+/server/.venv/
+/todolist-extension/dist/
+/todolist-extension/node_modules/

@@ -184,6 +184,12 @@ interface RemoteChange {
   deleted?: boolean;
 }
 
+const isRemoteChange = (change: unknown): change is RemoteChange =>
+  typeof change === "object" &&
+  change !== null &&
+  "key" in change &&
+  typeof change.key === "string";
+
 /** Remote HTTP sync provider */
 export const remoteSync = async (
   db: DB.Database,
@@ -223,9 +229,12 @@ export const remoteSync = async (
     const snapshot = await request<RemoteSnapshot>(
       `/v1/stores/${storePath}`,
     );
-    console.info("[todo-sync] remote changes:", snapshot.changes.length);
+    const remoteChanges = Array.isArray(snapshot.changes)
+      ? snapshot.changes.filter(isRemoteChange)
+      : [];
+    console.info("[todo-sync] remote changes:", remoteChanges.length);
 
-    const legacyIosPlanWidgetRecord = snapshot.changes.find(
+    const legacyIosPlanWidgetRecord = remoteChanges.find(
       (change) =>
         !change.deleted &&
         change.key === "widget/default-plan" &&
@@ -239,7 +248,7 @@ export const remoteSync = async (
       ? [{ key: legacyIosPlanWidgetRecord.key, deleted: true }]
       : [];
 
-    const snapshotChanges = snapshot.changes.filter(
+    const snapshotChanges = remoteChanges.filter(
       (change) => !legacyIosWidgetDeletions.some((deletion) => deletion.key === change.key),
     );
 

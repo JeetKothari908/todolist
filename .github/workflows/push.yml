@@ -11,8 +11,11 @@ jobs:
         with:
           node-version: 16
           cache: npm
+          cache-dependency-path: todolist-extension/package-lock.json
       - run: npm ci
+        working-directory: todolist-extension
       - run: npm test
+        working-directory: todolist-extension
   build:
     name: Build ${{ matrix.build_target }}
     runs-on: ubuntu-latest
@@ -28,12 +31,15 @@ jobs:
         with:
           node-version: 16
           cache: npm
+          cache-dependency-path: todolist-extension/package-lock.json
       - run: npm ci
+        working-directory: todolist-extension
       - run: npm run build:${{ matrix.build_target }}
+        working-directory: todolist-extension
         env:
           GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY }}
           UNSPLASH_API_KEY: ${{ secrets.UNSPLASH_API_KEY }}
       - uses: actions/upload-artifact@v3
         with:
-          name: tabliss-${{ matrix.build_target }}
-          path: dist/${{ matrix.build_target }}
+          name: todolist-extension-${{ matrix.build_target }}
+          path: todolist-extension/dist/${{ matrix.build_target }}

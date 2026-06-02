@@ -6,13 +6,14 @@ This is a Chrome extension built on top of [Tabliss](https://tabliss.io), a cust
 
 The project is built with **React 18**, **TypeScript**, and **Sass**, bundled with **Webpack**. It uses a plugin architecture where backgrounds and widgets are modular and can be added or removed. All user data is persisted locally to the browser's storage via a custom IndexedDB-backed reactive database.
 
-This project is open source under the [GPL-3.0 license](tabliss-main/LICENSE.txt), based on [Tabliss](https://github.com/joelshepherd/tabliss) by Joel Shepherd.
+This project is open source under the [GPL-3.0 license](LICENSE.txt), based on [Tabliss](https://github.com/joelshepherd/tabliss) by Joel Shepherd.
 
 ### Build & Run
 
-1. `npm install` to install dependencies.
-2. `npm run build:chromium` to produce a production Chromium build (output goes to `dist/`).
-3. Load the unpacked extension from `dist/` in `chrome://extensions`.
+1. `cd todolist-extension`
+2. `npm install` to install dependencies.
+3. `npm run build:chromium` to produce a production Chromium build (output goes to `dist/`).
+4. Load the unpacked extension from `todolist-extension/dist/chromium` in `chrome://extensions`.
 
 For development: `npm run dev:chromium` runs Webpack in watch mode.
 
@@ -106,14 +107,14 @@ The task list uses a reducer pattern with the following actions:
 
 | File | Purpose |
 |---|---|
-| `src/plugins/widgets/todo-plus/TodoPlus.tsx` | Main UI component (1100+ lines) — panels, input, menus, rendering |
-| `src/plugins/widgets/todo-plus/TodoPlus.sass` | All styling for the task manager |
-| `src/plugins/widgets/todo/reducer.ts` | State reducer — defines the Todo type and all state transitions |
-| `src/plugins/widgets/todo/actions.ts` | Action creators for all task operations |
-| `src/plugins/widgets/todo/types.ts` | Data type definitions and defaults |
-| `src/hooks/useSavedReducer.ts` | Hook that auto-persists reducer state to the database |
-| `src/db/state.ts` | Database schema and default widget configuration |
-| `src/db/action.ts` | Database-level actions (add/remove/reorder widgets) |
+| `todolist-extension/src/plugins/widgets/todo-plus/TodoPlus.tsx` | Main UI component (1100+ lines) — panels, input, menus, rendering |
+| `todolist-extension/src/plugins/widgets/todo-plus/TodoPlus.sass` | All styling for the task manager |
+| `todolist-extension/src/plugins/widgets/todo/reducer.ts` | State reducer — defines the Todo type and all state transitions |
+| `todolist-extension/src/plugins/widgets/todo/actions.ts` | Action creators for all task operations |
+| `todolist-extension/src/plugins/widgets/todo/types.ts` | Data type definitions and defaults |
+| `todolist-extension/src/hooks/useSavedReducer.ts` | Hook that auto-persists reducer state to the database |
+| `todolist-extension/src/db/state.ts` | Database schema and default widget configuration |
+| `todolist-extension/src/db/action.ts` | Database-level actions (add/remove/reorder widgets) |
 
 ---
 
@@ -143,7 +144,7 @@ This extension ("To Do List") does not collect, transmit, or store any personal 
 
 ## License
 
-This project is licensed under the [GNU General Public License v3.0](tabliss-main/LICENSE.txt).
+This project is licensed under the [GNU General Public License v3.0](LICENSE.txt).
 
 Based on [Tabliss](https://tabliss.io) by [Joel Shepherd](https://github.com/joelshepherd/tabliss).
 

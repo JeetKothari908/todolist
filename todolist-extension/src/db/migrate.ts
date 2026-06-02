@@ -3,6 +3,16 @@ import { importStore } from "./action";
 import { selectWidgets } from "./select";
 import { cache, db } from "./state";
 
+const isWidgetRecord = (
+  value: unknown,
+): value is { id: string; key: string } =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  "key" in value &&
+  typeof value.id === "string" &&
+  typeof value.key === "string";
+
 /** Migrate extension data */
 const migrateExtension = async (): Promise<void> => {
   const key = "persist:data";
@@ -70,14 +80,14 @@ const findUsedIds = (): Set<string> => {
   const used = new Set<string>();
   used.add(DB.get(db, "background").id);
   for (const [, val] of DB.prefix(db, "widget/")) {
-    if (val !== null) used.add(val.id);
+    if (isWidgetRecord(val)) used.add(val.id);
   }
   return used;
 };
 
 const ensureQuoteWidget = (): void => {
   const hasQuote = Array.from(DB.prefix(db, "widget/")).some(
-    ([, val]) => val !== null && val.key === "widget/quote",
+    ([, val]) => isWidgetRecord(val) && val.key === "widget/quote",
   );
   if (hasQuote) return;
 

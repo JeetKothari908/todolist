@@ -50,10 +50,12 @@ const defaultWidgetPosition = (key: string): WidgetPosition => {
   }
 };
 
-const exclusiveWidgetGroups = [["widget/notes", "widget/planOfDay"]];
+const exclusiveWidgetGroups: string[][] = [];
 
 const singletonWidgetId = (key: string): string | null => {
   switch (key) {
+    case "widget/todo":
+      return "default-todo";
     case "widget/notes":
       return "default-notes";
     case "widget/planOfDay":

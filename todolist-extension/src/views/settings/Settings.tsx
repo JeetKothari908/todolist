@@ -1,28 +1,84 @@
 import React from "react";
 import { FormattedMessage } from "react-intl";
 import { UiContext } from "../../contexts/ui";
-import { addWidget, exportStore, importStore, removeWidget, resetStore } from "../../db/action";
+import {
+  addWidget,
+  exportStore,
+  importStore,
+  removeWidget,
+  resetStore,
+  setWidgetDisplay,
+} from "../../db/action";
 import { selectWidgets } from "../../db/select";
-import { db } from "../../db/state";
+import { db, WidgetPosition } from "../../db/state";
 import { useKeyPress } from "../../hooks";
 import { useKey, useSelector } from "../../lib/db/react";
 import Background from "./Background";
 import "./Settings.sass";
 import System from "./System";
 
+type SideFeatureKey = "widget/todo" | "widget/notes" | "widget/planOfDay";
+type Side = "left" | "right";
+
+const sideFeatures: { key: SideFeatureKey; name: string }[] = [
+  { key: "widget/todo", name: "Todos" },
+  { key: "widget/notes", name: "Notes" },
+  { key: "widget/planOfDay", name: "Plan of the Day" },
+];
+
+const sidePositions: Record<Side, WidgetPosition> = {
+  left: "middleLeft",
+  right: "bottomRight",
+};
+
 const Settings: React.FC = () => {
   const { toggleSettings } = React.useContext(UiContext);
   const [showQuotes, setShowQuotes] = useKey(db, "showQuotes");
   const widgets = useSelector(db, selectWidgets);
-  const notesWidget = widgets.find((widget) => widget.key === "widget/notes");
-  const planWidget = widgets.find(
-    (widget) => widget.key === "widget/planOfDay",
-  );
 
-  const toggleWidget = (key: string, enabled: boolean) => {
-    const existing = widgets.find((widget) => widget.key === key);
-    if (enabled && !existing) addWidget(key);
-    if (!enabled && existing) removeWidget(existing.id);
+  const getSideFeature = (side: Side) =>
+    widgets.find(
+      (widget) =>
+        sideFeatures.some((feature) => feature.key === widget.key) &&
+        widget.display.position === sidePositions[side],
+    )?.key ?? "";
+
+  const setSideFeature = (side: Side, nextKey: "" | SideFeatureKey) => {
+    const position = sidePositions[side];
+    const selectedSideKeys = new Set(
+      (["left", "right"] as Side[])
+        .filter((item) => item !== side)
+        .map((item) => getSideFeature(item))
+        .filter(Boolean),
+    );
+
+    widgets
+      .filter(
+        (widget) =>
+          sideFeatures.some((feature) => feature.key === widget.key) &&
+          widget.display.position === position &&
+          widget.key !== nextKey,
+      )
+      .forEach((widget) => removeWidget(widget.id));
+
+    widgets
+      .filter(
+        (widget) =>
+          sideFeatures.some((feature) => feature.key === widget.key) &&
+          !selectedSideKeys.has(widget.key) &&
+          widget.key !== nextKey,
+      )
+      .forEach((widget) => removeWidget(widget.id));
+
+    if (!nextKey) return;
+
+    let widget = widgets.find((item) => item.key === nextKey);
+    if (!widget) {
+      addWidget(nextKey);
+      widget = selectWidgets().find((item) => item.key === nextKey);
+    }
+
+    if (widget) setWidgetDisplay(widget.id, { position });
   };
 
   const handleReset = () => {
@@ -100,26 +156,37 @@ const Settings: React.FC = () => {
           />
           Quotes
         </label>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={!!notesWidget}
-            onChange={(event) =>
-              toggleWidget("widget/notes", event.target.checked)
-            }
-          />
-          Notes
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={!!planWidget}
-            onChange={(event) =>
-              toggleWidget("widget/planOfDay", event.target.checked)
-            }
-          />
-          Plan of the Day
-        </label>
+        <div className="side-layout">
+          {(["left", "right"] as Side[]).map((side) => {
+            const otherSide = side === "left" ? "right" : "left";
+            const otherValue = getSideFeature(otherSide);
+            return (
+              <label key={side}>
+                {side === "left" ? "Left side" : "Right side"}
+                <select
+                  value={getSideFeature(side)}
+                  onChange={(event) =>
+                    setSideFeature(
+                      side,
+                      event.target.value as "" | SideFeatureKey,
+                    )
+                  }
+                >
+                  <option value="">None</option>
+                  {sideFeatures.map((feature) => (
+                    <option
+                      key={feature.key}
+                      value={feature.key}
+                      disabled={otherValue === feature.key}
+                    >
+                      {feature.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            );
+          })}
+        </div>
 
         <p style={{ marginBottom: "2rem" }}>
           <a onClick={handleImport}>Import</a>,{" "}
