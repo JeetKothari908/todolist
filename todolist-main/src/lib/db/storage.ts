@@ -225,7 +225,30 @@ export const remoteSync = async (
     );
     console.info("[todo-sync] remote changes:", snapshot.changes.length);
 
-    if (snapshot.changes.length === 0) {
+    const legacyIosPlanWidgetRecord = snapshot.changes.find(
+      (change) =>
+        !change.deleted &&
+        change.key === "widget/default-plan" &&
+        typeof change.value === "object" &&
+        change.value !== null &&
+        "key" in change.value &&
+        change.value.key === "widget/planOfDay",
+    );
+
+    const hasCurrentPlanWidgetRecord = snapshot.changes.some(
+      (change) => !change.deleted && change.key === "widget/default-plan-of-day",
+    );
+
+    const legacyIosWidgetDeletions =
+      legacyIosPlanWidgetRecord && hasCurrentPlanWidgetRecord
+        ? [{ key: legacyIosPlanWidgetRecord.key, deleted: true }]
+        : [];
+
+    const snapshotChanges = snapshot.changes.filter(
+      (change) => !legacyIosWidgetDeletions.some((deletion) => deletion.key === change.key),
+    );
+
+    if (snapshotChanges.length === 0) {
       const seedChanges: RemoteChange[] = [];
       for (const [key, value] of db) {
         if (value !== undefined) seedChanges.push({ key, value });
@@ -240,11 +263,24 @@ export const remoteSync = async (
       console.info("[todo-sync] seeded remote changes:", seedChanges.length);
     } else {
       DB.atomic(db, (trx) => {
-        for (const change of snapshot.changes) {
+        for (const change of snapshotChanges) {
           if (change.deleted) DB.del(trx, change.key);
           else DB.put(trx, change.key, change.value);
         }
       });
+    }
+
+    if (legacyIosWidgetDeletions.length > 0) {
+      await request(`/v1/stores/${storePath}/changes`, {
+        method: "POST",
+        body: JSON.stringify({
+          changes: legacyIosWidgetDeletions,
+        }),
+      });
+      console.info(
+        "[todo-sync] removed legacy iOS plan widget records:",
+        legacyIosWidgetDeletions.length,
+      );
     }
   } catch (error) {
     const syncError = mapError("Cannot sync initial snapshot", error);

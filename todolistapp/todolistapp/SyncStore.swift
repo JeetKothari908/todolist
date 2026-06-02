@@ -263,7 +263,7 @@ final class SyncStore: ObservableObject {
             values: values
         )
         planDataKey = ensureWidget(
-            widgetId: "default-plan",
+            widgetId: "default-plan-of-day",
             widgetKey: "widget/planOfDay",
             order: 5,
             position: "topRight",

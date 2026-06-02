@@ -2,7 +2,7 @@ import React from "react";
 import { setWidgetDisplay } from "../../db/action";
 import { WidgetState } from "../../db/state";
 import { useToggle } from "../../hooks";
-import { getConfig } from "../../plugins";
+import { getConfigSafe } from "../../plugins";
 import { DownIcon, Icon, IconButton, RemoveIcon, UpIcon } from "../shared";
 import PluginContainer from "../shared/Plugin";
 import ToggleSection from "../shared/ToggleSection";
@@ -23,10 +23,24 @@ const Widget: React.FC<Props> = ({
   onRemove,
 }) => {
   const [isOpen, toggleIsOpen] = useToggle(onRemove === undefined);
-
-  const { description, name, settingsComponent } = getConfig(plugin.key);
-
+  const config = getConfigSafe(plugin.key);
   const setDisplay = setWidgetDisplay.bind(null, plugin.id);
+
+  if (!config) {
+    return (
+      <fieldset className="Widget">
+        <div className="title--buttons">
+          <IconButton onClick={onRemove} title="Remove widget">
+            <RemoveIcon />
+          </IconButton>
+          <h4>Invalid widget</h4>
+        </div>
+        <p>This widget is no longer available or has invalid configuration.</p>
+      </fieldset>
+    );
+  }
+
+  const { description, name, settingsComponent } = config;
 
   return (
     <fieldset className="Widget">
