@@ -21,8 +21,8 @@ final class SyncStore: ObservableObject {
     private let storeName = "tabliss/config"
     private var todoDataKey = "data/default-todo"
     private var notesDataKey = "data/default-notes"
-    private var planDataKey = "data/default-plan"
-    private var bootstrapChanges: [RemoteChange] = []
+    private var planDataKey = "data/default-plan-of-day"
+    private let legacyPlanDataKey = "data/default-plan"
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     static let defaultDueTime = "23:59"
@@ -49,10 +49,6 @@ final class SyncStore: ObservableObject {
         await performSync {
             let snapshot = try await self.requestSnapshot()
             self.apply(snapshot: snapshot)
-            if !self.bootstrapChanges.isEmpty {
-                try await self.post(changes: self.bootstrapChanges)
-                self.bootstrapChanges = []
-            }
             self.status = "Synced \(Date.now.formatted(date: .omitted, time: .shortened))"
         }
     }
@@ -253,27 +249,13 @@ final class SyncStore: ObservableObject {
             return (change.key, value)
         })
 
-        todoDataKey = dataKey(forWidgetKey: "widget/todo", fallback: todoDataKey, values: values)
-        notesDataKey = ensureWidget(
-            widgetId: "default-notes",
-            widgetKey: "widget/notes",
-            order: 4,
-            position: "bottomLeft",
-            fallbackDataKey: notesDataKey,
-            values: values
-        )
-        planDataKey = ensureWidget(
-            widgetId: "default-plan-of-day",
-            widgetKey: "widget/planOfDay",
-            order: 5,
-            position: "topRight",
-            fallbackDataKey: planDataKey,
-            values: values
-        )
-
         decodeIfPresent(TodoData.self, key: todoDataKey, values: values) { todos = $0 }
         decodeIfPresent(NotesData.self, key: notesDataKey, values: values) { notes = $0 }
-        decodeIfPresent(PlanData.self, key: planDataKey, values: values) { plan = $0 }
+        if values[planDataKey] != nil {
+            decodeIfPresent(PlanData.self, key: planDataKey, values: values) { plan = $0 }
+        } else {
+            decodeIfPresent(PlanData.self, key: legacyPlanDataKey, values: values) { plan = $0 }
+        }
 
         if plan.selectedDate == nil {
             plan.selectedDate = Self.todayKey()
@@ -282,51 +264,6 @@ final class SyncStore: ObservableObject {
             plan.activeDate = Self.todayKey()
         }
         persist()
-    }
-
-    private func ensureWidget(
-        widgetId: String,
-        widgetKey: String,
-        order: Int,
-        position: String,
-        fallbackDataKey: String,
-        values: [String: JSONValue]
-    ) -> String {
-        let existingDataKey = dataKey(forWidgetKey: widgetKey, fallback: "", values: values)
-        if !existingDataKey.isEmpty {
-            return existingDataKey
-        }
-
-        do {
-            let widget = WidgetState(
-                id: widgetId,
-                key: widgetKey,
-                order: order,
-                display: WidgetDisplay(position: position)
-            )
-            bootstrapChanges.append(
-                RemoteChange(
-                    key: "widget/\(widgetId)",
-                    value: try JSONValue(encoding: widget, encoder: encoder),
-                    deleted: false
-                )
-            )
-        } catch {
-            errorMessage = "Could not create \(widgetKey): \(error.localizedDescription)"
-        }
-        return fallbackDataKey
-    }
-
-    private func dataKey(forWidgetKey widgetKey: String, fallback: String, values: [String: JSONValue]) -> String {
-        for (key, value) in values where key.hasPrefix("widget/") {
-            guard let object = value.objectValue,
-                  object["key"]?.stringValue == widgetKey,
-                  let id = object["id"]?.stringValue else {
-                continue
-            }
-            return "data/\(id)"
-        }
-        return fallback
     }
 
     private func decodeIfPresent<T: Decodable>(_ type: T.Type, key: String, values: [String: JSONValue], assign: (T) -> Void) {

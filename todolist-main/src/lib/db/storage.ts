@@ -235,14 +235,9 @@ export const remoteSync = async (
         change.value.key === "widget/planOfDay",
     );
 
-    const hasCurrentPlanWidgetRecord = snapshot.changes.some(
-      (change) => !change.deleted && change.key === "widget/default-plan-of-day",
-    );
-
-    const legacyIosWidgetDeletions =
-      legacyIosPlanWidgetRecord && hasCurrentPlanWidgetRecord
-        ? [{ key: legacyIosPlanWidgetRecord.key, deleted: true }]
-        : [];
+    const legacyIosWidgetDeletions = legacyIosPlanWidgetRecord
+      ? [{ key: legacyIosPlanWidgetRecord.key, deleted: true }]
+      : [];
 
     const snapshotChanges = snapshot.changes.filter(
       (change) => !legacyIosWidgetDeletions.some((deletion) => deletion.key === change.key),

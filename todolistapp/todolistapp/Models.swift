@@ -86,17 +86,6 @@ struct PlanData: Codable, Equatable {
     }
 }
 
-struct WidgetState: Codable, Equatable {
-    var id: String
-    var key: String
-    var order: Int
-    var display: WidgetDisplay
-}
-
-struct WidgetDisplay: Codable, Equatable {
-    var position: String
-}
-
 struct RemoteSnapshot: Codable {
     var changes: [RemoteChange]
 }
@@ -150,15 +139,6 @@ enum JSONValue: Codable, Equatable {
         }
     }
 
-    var objectValue: [String: JSONValue]? {
-        if case .object(let value) = self { return value }
-        return nil
-    }
-
-    var stringValue: String? {
-        if case .string(let value) = self { return value }
-        return nil
-    }
 }
 
 extension JSONValue {
