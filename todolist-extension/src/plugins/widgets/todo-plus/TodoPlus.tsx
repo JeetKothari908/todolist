@@ -145,6 +145,15 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   const [inboxViewMenuOpen, setInboxViewMenuOpen] = useState(false);
   const [inboxView, setInboxView] = useState<"inbox" | string>("inbox");
 
+  const focusDueTimeInput = (container?: HTMLElement | null) => {
+    window.setTimeout(() => {
+      const timeInput = (container ?? rootRef.current)?.querySelector<HTMLInputElement>(
+        ".time-input:not(:disabled)",
+      );
+      timeInput?.focus();
+    }, 0);
+  };
+
   const repeatEqual = (a?: Repeat, b?: Repeat) => {
     if (!a && !b) return true;
     if (!a || !b) return false;
@@ -334,13 +343,19 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
   };
 
   const handleAddWithDueDate = (date: string) => {
-    const trimmed = input.trim();
-    if (!trimmed) {
-      setDueDate(date);
-      return;
-    }
-    submitTaskWithMeta({ dueDate: date });
-    closeAllMenus();
+    setRemainingMenuOpen(false);
+    setDueListMenuOpen(false);
+    setDueViewMenuOpen(false);
+    setInboxViewMenuOpen(false);
+    setCompleteMenuId(null);
+    setCompleteMenuAnchor(null);
+    setItemMenuId(null);
+    setPopoverAnchor(null);
+    setListPickerOpen(false);
+    setDueDate(date);
+    setDueTime((current) => current ?? defaultDueTime);
+    setMenuOpen(true);
+    focusDueTimeInput();
   };
 
   const showMenuToggle = inputFocused || input.trim().length > 0;
@@ -606,10 +621,19 @@ const TodoPlus: FC<Props> = ({ data = defaultData, setData }) => {
             value={currentDueDate ?? ""}
             onChange={(event) => {
               const nextDueDate = event.target.value || undefined;
-              const nextDueTime = nextDueDate || currentRepeat ? currentDueTime ?? defaultDueTime : undefined;
+              const nextDueTime =
+                nextDueDate || currentRepeat ? currentDueTime ?? defaultDueTime : undefined;
               onDueDateChange?.(nextDueDate);
-              if (!nextDueDate) onDueTimeChange?.(undefined);
-              onClose?.({ dueDate: nextDueDate, dueTime: nextDueTime, repeat: currentRepeat });
+              onDueTimeChange?.(nextDueTime);
+              if (nextDueDate) {
+                focusDueTimeInput(event.currentTarget.closest<HTMLElement>(".menu"));
+              } else {
+                onClose?.({
+                  dueDate: nextDueDate,
+                  dueTime: nextDueTime,
+                  repeat: currentRepeat,
+                });
+              }
             }}
           />
         </label>
