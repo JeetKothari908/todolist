@@ -1,6 +1,99 @@
 # Setup
 
-This guide explains how to set up the Raspberry Pi sync server from scratch, restart it later, and connect a new computer to the synced extension.
+This guide contains all setup instructions for the project: building the browser extension, running the sync server, opening the iOS app, setting up the Raspberry Pi, restarting the stack later, verifying sync, and debugging common setup issues.
+
+## Browser Extension
+
+Use this when installing or rebuilding the Chrome/Chromium extension locally.
+
+1. Install dependencies and build the Chromium bundle from the repo root:
+
+```powershell
+cd todolist-extension
+npm install
+npm run build:chromium
+```
+
+2. Load the extension:
+
+Open `chrome://extensions`, enable Developer mode, click "Load unpacked", and select:
+
+```text
+todolist-extension/dist/chromium
+```
+
+3. Open a new tab.
+
+If sync is configured and the sync server is reachable, the extension should pull the latest synced state on startup.
+
+For development, run Webpack in watch mode:
+
+```powershell
+cd todolist-extension
+npm run dev:chromium
+```
+
+Useful extension commands:
+
+```powershell
+npm test
+npm run build:chromium
+npm run build:firefox
+npm run build:web
+npm run translations
+```
+
+## Local Sync Server
+
+Use this when running the FastAPI and SQLite sync server directly on your current machine instead of the Raspberry Pi.
+
+On macOS/Linux:
+
+```bash
+cd server
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+export TODOLIST_TOKEN='replace-with-your-token'
+uvicorn app:app --host 127.0.0.1 --port 8787
+```
+
+On Windows PowerShell:
+
+```powershell
+cd server
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+$env:TODOLIST_TOKEN = 'replace-with-your-token'
+uvicorn app:app --host 127.0.0.1 --port 8787
+```
+
+Verify it locally:
+
+```powershell
+curl.exe "http://127.0.0.1:8787/health"
+curl.exe -H "Authorization: Bearer replace-with-your-token" "http://127.0.0.1:8787/v1/stores/tabliss/config"
+```
+
+The health check should return `{"ok":true}`. The config endpoint should return JSON with a `changes` array.
+
+## iOS App
+
+Open the Xcode project:
+
+```text
+todolistapp/todolistapp.xcodeproj
+```
+
+The app uses SwiftUI and `SyncStore` to talk to the same sync API as the extension. Its main tabs are:
+
+- Todos
+- Notes
+- Plan
+- Alerts
+
+Sync settings are editable in the app through the gear button. Build and run it from Xcode on a Mac.
 
 ## Raspberry Pi From Scratch
 

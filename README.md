@@ -1,150 +1,98 @@
-Basic web extension for google chrome that changes your default new tab to have a decent to do list. 
+# Todolist
 
-## Overview
+Personal todo workspace built around a customized Tabliss new-tab extension, a private FastAPI sync server, and a SwiftUI iOS client. The extension is still the main daily surface: it replaces the browser new tab with a dashboard that includes todos, notes, plan-of-day, clock/search/background widgets, and optional private sync.
 
-This is a Chrome extension built on top of [Tabliss](https://tabliss.io), a customizable New Tab page. It replaces your default new tab with a beautiful dashboard featuring a background wallpaper, search bar, clock, optional quotes, and most importantly, a full-featured task manager.
+This repo is based on [Tabliss](https://tabliss.io) by Joel Shepherd and is licensed under [GPL-3.0](LICENSE.txt).
 
-The project is built with **React 18**, **TypeScript**, and **Sass**, bundled with **Webpack**. It uses a plugin architecture where backgrounds and widgets are modular and can be added or removed. All user data is persisted locally to the browser's storage via a custom IndexedDB-backed reactive database.
+![Todo List](logo.png)
 
-This project is open source under the [GPL-3.0 license](LICENSE.txt), based on [Tabliss](https://github.com/joelshepherd/tabliss) by Joel Shepherd.
+## Project Summary
 
-### Build & Run
+The project has these main parts:
 
-1. `cd todolist-extension`
-2. `npm install` to install dependencies.
-3. `npm run build:chromium` to produce a production Chromium build (output goes to `dist/`).
-4. Load the unpacked extension from `todolist-extension/dist/chromium` in `chrome://extensions`.
-
-For development: `npm run dev:chromium` runs Webpack in watch mode.
-
-### Settings
-
-Clicking the gear icon (top-left) or pressing **S** opens the settings panel, where you can:
-
-- Change the background wallpaper and its display settings (blur, luminosity).
-- Toggle the **Quotes** widget on or off via a checkbox under the "Widgets" section.
-- Change the language and time zone.
-- Import, export, or reset all settings.
-
----
-
-## How the To-Do List Works
-
-The task manager is the core feature. It is a Momentum-style two-panel widget rendered in the bottom-right corner of the new tab page (only visible when the browser window is maximized or fullscreen).
-
-### Two Panels
-
-- **"Due Today"** — Shows tasks that are due today, overdue (due date in the past), or whose repeat schedule includes today. Can be toggled to show **"Finished Tasks"** instead.
-- **"Inbox"** — Shows all other active tasks (no due date, or due in the future). Tasks are sorted by due date.
-
-### Task Data Model
-
-Each task is stored as a flat object:
-
-| Field | Type | Description |
-|---|---|---|
-| `id` | `string` | Unique identifier (generated via `nanoid`) |
-| `contents` | `string` | The task text |
-| `completed` | `boolean` | Whether the checkbox has been checked |
-| `dismissed` | `boolean` | Whether the task has been sent to the Finished Tasks list |
-| `dueDate` | `string?` | Optional due date in `YYYY-MM-DD` format |
-| `repeat` | `Repeat?` | Optional recurring schedule (daily, weekly, or custom days) |
-| `parentId` | `string?` | Links a completed repeat instance back to its parent task |
-
-All tasks are stored as a single flat array and persisted automatically to the browser's local storage via the `useSavedReducer` hook, which wraps React's `useReducer` and saves on every state change.
-
-### Task Lifecycle
-
-1. **Creating a task** — Type in the input field and press Enter or click the add button. You can optionally set a due date and/or a repeat schedule (daily, weekly, or specific days of the week) via the expandable menu.
-
-2. **Checking off a task** — Clicking the checkbox marks the task as `completed`. The task **stays in its current list** (Due Today or Inbox) with strikethrough text and a blue filled checkbox. An "x" icon appears next to the task text.
-
-3. **Dismissing a task** — Clicking the "x" icon on a checked-off task sets it as `dismissed`, which moves it to the **Finished Tasks** list. This is a two-step process: check off first, then dismiss.
-
-4. **Unchecking a task** — Clicking the checkbox again on a completed task unchecks it and clears the dismissed flag, returning it to its normal active state.
-
-5. **Deleting a task** — Open the task's options menu (three-dot icon on the right) to access due date/repeat settings or remove the task entirely.
-
-### Overdue Tasks
-
-Tasks with a due date before today are shown in the **"Due Today"** panel with their text and due date rendered in **red** to indicate they are overdue.
-
-### Repeat Tasks
-
-Tasks can be set to repeat on a schedule:
-
-- **Daily** — due every day.
-- **Weekly** — due on a specific day each week.
-- **Custom** — due on selected days of the week (e.g., Mon/Wed/Fri).
-
-When completing a repeating task, a menu appears with two options:
-
-- **"Complete Instance"** — Marks just today's occurrence as done. A completed child record is created (linked via `parentId`), and the parent task's due date advances to the next scheduled occurrence.
-- **"Complete Task"** — Permanently removes the entire repeating task.
-
-### Finished Tasks
-
-The "Finished Tasks" view (accessed via the dropdown on the Due Today panel header) shows all dismissed tasks. The **"Remove Finished Items"** button in the list menu permanently deletes all dismissed items.
-
-### State Management
-
-The task list uses a reducer pattern with the following actions:
-
-| Action | Effect |
+| Path | Purpose |
 |---|---|
-| `ADD_TODO` | Creates a new task |
-| `REMOVE_TODO` | Permanently deletes a task |
-| `TOGGLE_TODO` | Checks/unchecks a task (clears dismissed flag on uncheck) |
-| `DISMISS_TODO` | Sends a completed task to the Finished Tasks list |
-| `UPDATE_TODO` | Edits the task text (inline editing) |
-| `UPDATE_TODO_META` | Updates due date and repeat settings |
-| `COMPLETE_INSTANCE` | Marks a single occurrence as completed |
-| `COMPLETE_TASK` | Permanently removes a repeating task |
-| `COMPLETE_REPEAT_INSTANCE` | Completes today's repeat occurrence and advances to next date |
-| `UNCOMPLETE_REPEAT_INSTANCE` | Reverses a repeat completion |
+| `todolist-extension/` | React 18, TypeScript, Sass, and Webpack browser extension/PWA. This is the main new-tab dashboard and contains the widgets for todos, notes, plan of the day, backgrounds, search, time, quotes, and other Tabliss features. |
+| `server/` | FastAPI and SQLite key-value sync API. It stores extension/iOS data under a shared store path, supports bearer-token auth, and is intended to run privately on a Raspberry Pi behind Tailscale Serve. |
+| `todolistapp/` | SwiftUI iOS client for todos, notes, plan of day, and local notification groups. It reads/writes the same synced records as the extension. |
+| `docs/` | Extension-focused docs, contributing notes, changelog, and translation instructions. |
+| `setup.md` | Operational runbook for setting up, restarting, and verifying the Raspberry Pi sync stack. |
 
-### Key Files
+At a data level, the browser extension and iOS app share the same JSON records in the `tabliss/config` store:
+
+- `data/default-todo` for todo items, due dates/times, repeat rules, custom lists, completion, and dismissed state.
+- `data/default-notes` for notes and note folders.
+- `data/default-plan-of-day` for day-keyed plan text.
+
+The sync server exposes:
+
+- `GET /health`
+- `GET /v1/stores/{store}`
+- `POST /v1/stores/{store}/changes`
+
+## Features
+
+- Momentum-style new-tab todo dashboard.
+- Todos with due dates, due times, overdue styling, custom lists, completed/finished state, and repeat rules.
+- Notes widget with note/folder data that syncs across clients.
+- Plan-of-day widget for date-specific planning.
+- Customizable Tabliss widgets and backgrounds.
+- Optional private sync through a Raspberry Pi, SQLite, and Tailscale Serve.
+- SwiftUI iOS client with tabs for Todos, Notes, Plan, and Alerts.
+- Local iOS notification groups for todo reminders.
+
+## Setup
+
+All setup instructions live in [setup.md](setup.md), including:
+
+- Building and loading the browser extension.
+- Running the local FastAPI sync server.
+- Opening the SwiftUI iOS app.
+- Setting up the Raspberry Pi sync server.
+- Restarting, verifying, debugging, and connecting new devices.
+
+## Important Files
 
 | File | Purpose |
 |---|---|
-| `todolist-extension/src/plugins/widgets/todo-plus/TodoPlus.tsx` | Main UI component (1100+ lines) — panels, input, menus, rendering |
-| `todolist-extension/src/plugins/widgets/todo-plus/TodoPlus.sass` | All styling for the task manager |
-| `todolist-extension/src/plugins/widgets/todo/reducer.ts` | State reducer — defines the Todo type and all state transitions |
-| `todolist-extension/src/plugins/widgets/todo/actions.ts` | Action creators for all task operations |
-| `todolist-extension/src/plugins/widgets/todo/types.ts` | Data type definitions and defaults |
-| `todolist-extension/src/hooks/useSavedReducer.ts` | Hook that auto-persists reducer state to the database |
-| `todolist-extension/src/db/state.ts` | Database schema and default widget configuration |
-| `todolist-extension/src/db/action.ts` | Database-level actions (add/remove/reorder widgets) |
+| `todolist-extension/src/plugins/widgets/todo-plus/TodoPlus.tsx` | Main extension todo UI: panels, due date/time controls, repeats, custom lists, sorting, and rendering. |
+| `todolist-extension/src/plugins/widgets/todo/reducer.ts` | Todo state transitions and data behavior. |
+| `todolist-extension/src/plugins/widgets/notes/Notes.tsx` | Notes widget UI. |
+| `todolist-extension/src/plugins/widgets/planOfDay/PlanOfDay.tsx` | Plan-of-day widget UI. |
+| `todolist-extension/src/lib/db/storage.ts` | Local storage and remote sync plumbing. |
+| `todolist-extension/src/db/state.ts` | Default extension database state and sync startup. |
+| `server/app.py` | FastAPI sync API and SQLite persistence. |
+| `server/import_backup.py` | Imports an exported extension storage backup into the server database. |
+| `todolistapp/todolistapp/SyncStore.swift` | iOS sync, caching, and shared data model mapping. |
+| `todolistapp/todolistapp/Models.swift` | Swift models for todos, notes, plans, and remote changes. |
+| `todolistapp/todolistapp/TodoNotificationStore.swift` | Local iOS notification scheduling for todo reminders. |
 
----
+## Privacy
 
-## Privacy Policy
+The extension does not use analytics, telemetry, advertising, cookies, or third-party tracking. By default, extension data is stored locally in browser storage.
 
-**Effective Date:** February 24, 2026
+This fork also supports optional private sync. When sync is configured, todos, notes, plan data, and settings are sent only to the configured sync server. The intended deployment is a private Raspberry Pi reachable through Tailscale, not a public hosted service.
 
-This extension ("To Do List") does not collect, transmit, or store any personal data on external servers. All user data — including tasks, settings, and preferences — is stored locally in your browser using browser storage APIs (IndexedDB and Chrome sync storage). No data is sent to any third party, and no analytics or tracking of any kind is used.
+Stored app data can include:
 
-**Data stored locally includes:**
-- Your task list (task text, due dates, repeat schedules, completion status)
-- Your settings (background preference, language, time zone, widget toggles)
+- Todo text, due dates, due times, repeat schedules, completion state, and custom lists.
+- Notes and note folders.
+- Plan-of-day text.
+- Extension settings such as background, language, time zone, and widget configuration.
 
-**Data NOT collected:**
-- No personal information (name, email, location, etc.)
-- No browsing history or activity
-- No analytics, telemetry, or usage data
-- No cookies or tracking identifiers
+You can delete local extension data by resetting settings in the extension or uninstalling the extension. Server-side data lives in the SQLite database configured for the sync server.
 
-**Third-party services:** This extension does not communicate with any external servers or third-party services.
+## More Docs
 
-**Data deletion:** You can delete all stored data at any time by resetting your settings within the extension or by uninstalling the extension from your browser.
-
-**Contact:** If you have questions about this privacy policy, please open an issue on the [GitHub repository](https://github.com/jeetd/todolist), or use our google form: https://forms.gle/V673yFrDCr3jzjoG9. 
-
----
+- [Raspberry Pi sync setup and recovery](setup.md)
+- [Sync server notes](server/README.md)
+- [Extension docs](docs/todolist-extension.md)
+- [Translation guide](docs/TRANSLATING.md)
+- [Contributing](docs/CONTRIBUTING.md)
+- [Changelog](docs/CHANGELOG.md)
 
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE.txt).
 
 Based on [Tabliss](https://tabliss.io) by [Joel Shepherd](https://github.com/joelshepherd/tabliss).
-
