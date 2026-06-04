@@ -15,6 +15,7 @@ import "./Notes.sass";
 
 export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
   const normalized = useMemo(() => normalizeData(data), [data]);
+  const editorRef = useRef<HTMLDivElement>(null);
   const noteTitleRef = useRef<HTMLTextAreaElement>(null);
   const noteBodyRef = useRef<HTMLTextAreaElement>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -52,10 +53,12 @@ export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
 
   useLayoutEffect(() => {
     resizeTitle();
+    revealActiveTextareaCaret();
   }, [noteTitle]);
 
   useLayoutEffect(() => {
     resizeBody();
+    revealActiveTextareaCaret();
   }, [noteBody]);
 
   const resizeTitle = () => {
@@ -70,6 +73,82 @@ export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
     if (!body) return;
     body.style.height = "auto";
     body.style.height = `${body.scrollHeight}px`;
+  };
+
+  const getTextareaCaretTop = (textarea: HTMLTextAreaElement) => {
+    const style = window.getComputedStyle(textarea);
+    const mirror = document.createElement("div");
+    const marker = document.createElement("span");
+    const properties = [
+      "borderBottomWidth",
+      "borderLeftWidth",
+      "borderRightWidth",
+      "borderTopWidth",
+      "boxSizing",
+      "fontFamily",
+      "fontSize",
+      "fontStyle",
+      "fontWeight",
+      "letterSpacing",
+      "lineHeight",
+      "paddingBottom",
+      "paddingLeft",
+      "paddingRight",
+      "paddingTop",
+      "textTransform",
+      "width",
+      "wordSpacing",
+    ] as const;
+
+    mirror.style.position = "absolute";
+    mirror.style.visibility = "hidden";
+    mirror.style.whiteSpace = "pre-wrap";
+    mirror.style.overflowWrap = "break-word";
+    mirror.style.top = "0";
+    mirror.style.left = "-9999px";
+    properties.forEach((property) => {
+      mirror.style[property] = style[property];
+    });
+    mirror.style.width = `${textarea.clientWidth}px`;
+    mirror.textContent = textarea.value.slice(0, textarea.selectionStart);
+    marker.textContent = "\u200b";
+    mirror.appendChild(marker);
+    document.body.appendChild(mirror);
+    const caretTop = marker.offsetTop;
+    document.body.removeChild(mirror);
+
+    return caretTop;
+  };
+
+  const revealTextareaCaret = (textarea: HTMLTextAreaElement) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const editorRect = editor.getBoundingClientRect();
+    const textareaRect = textarea.getBoundingClientRect();
+    const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight);
+    const caretTop =
+      editor.scrollTop + textareaRect.top - editorRect.top + getTextareaCaretTop(textarea);
+    const caretBottom = caretTop + (Number.isFinite(lineHeight) ? lineHeight : 20);
+    const padding = 36;
+    const visibleTop = editor.scrollTop + padding;
+    const visibleBottom = editor.scrollTop + editor.clientHeight - padding;
+
+    if (caretTop < visibleTop) {
+      editor.scrollTop = Math.max(0, caretTop - padding);
+    } else if (caretBottom > visibleBottom) {
+      editor.scrollTop = caretBottom - editor.clientHeight + padding;
+    }
+  };
+
+  const revealActiveTextareaCaret = () => {
+    const activeElement = document.activeElement;
+    if (
+      activeElement === noteTitleRef.current ||
+      activeElement === noteBodyRef.current
+    ) {
+      revealTextareaCaret(activeElement as HTMLTextAreaElement);
+    }
   };
 
   const getDisplayName = (item: Item) => {
@@ -207,7 +286,7 @@ export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
     <div className="Notes">
       <div className="panel">
         {selectedNote && selectedNote.type === "note" ? (
-          <div className="editor">
+          <div className="editor" ref={editorRef}>
             <div className="editor-toolbar">
               <button aria-label="Back to notes" onClick={closeNote}>
                 <Icon name="chevron-left" size={18} />
@@ -227,8 +306,12 @@ export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
                 placeholder="Untitled Note"
                 rows={1}
                 onChange={(event) => {
+                  const textarea = event.currentTarget;
                   updateNoteTitle(event.target.value.replace(/\n/g, " "));
-                  requestAnimationFrame(resizeTitle);
+                  requestAnimationFrame(() => {
+                    resizeTitle();
+                    revealTextareaCaret(textarea);
+                  });
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -242,8 +325,12 @@ export const Notes: React.FC<API<Data>> = ({ data = defaultData, setData }) => {
                 ref={noteBodyRef}
                 value={noteBody}
                 onChange={(event) => {
+                  const textarea = event.currentTarget;
                   updateNoteBody(event.target.value);
-                  requestAnimationFrame(resizeBody);
+                  requestAnimationFrame(() => {
+                    resizeBody();
+                    revealTextareaCaret(textarea);
+                  });
                 }}
                 spellCheck={true}
               />

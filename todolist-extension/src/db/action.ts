@@ -26,6 +26,7 @@ export const setBackground = (key: string): void => {
 /** Add a new widget */
 export const addWidget = (key: string): void => {
   removeMutuallyExclusiveWidgets(key);
+  ensureSingletonWidget(key);
 
   const id = singletonWidgetId(key) ?? createId();
   const widgets = selectWidgets();
@@ -36,6 +37,7 @@ export const addWidget = (key: string): void => {
     order,
     display: { position: defaultWidgetPosition(key) },
   });
+  recoverSingletonData(key, id);
 };
 
 const defaultWidgetPosition = (key: string): WidgetPosition => {
@@ -62,6 +64,92 @@ const singletonWidgetId = (key: string): string | null => {
       return "default-plan-of-day";
     default:
       return null;
+  }
+};
+
+export const ensureSingletonWidget = (key: string): void => {
+  const id = singletonWidgetId(key);
+  if (!id) return;
+
+  const widgets = selectWidgets().filter((widget) => widget.key === key);
+  const singleton = widgets.find((widget) => widget.id === id);
+  const source = singleton ?? widgets[0];
+
+  if (source && source.id !== id) {
+    DB.put(db, `widget/${id}`, { ...source, id });
+    moveWidgetData(source.id, id, key);
+    DB.put(db, `widget/${source.id}`, null);
+  }
+
+  widgets
+    .filter((widget) => widget.id !== id && widget.id !== source?.id)
+    .forEach((widget) => {
+      moveWidgetData(widget.id, id, key);
+      DB.put(db, `widget/${widget.id}`, null);
+    });
+
+  recoverSingletonData(key, id);
+};
+
+const moveWidgetData = (fromId: string, toId: string, key: string): void => {
+  const fromData = DB.get(db, `data/${fromId}`);
+  const toData = DB.get(db, `data/${toId}`);
+
+  if (shouldReplaceWidgetData(key, toData, fromData)) {
+    DB.put(db, `data/${toId}`, fromData);
+  }
+
+  DB.del(db, `data/${fromId}`);
+
+  const fromCache = DB.get(cache, fromId);
+  if (fromCache !== undefined && DB.get(cache, toId) === undefined) {
+    DB.put(cache, toId, fromCache);
+  }
+  DB.del(cache, fromId);
+};
+
+const recoverSingletonData = (key: string, id: string): void => {
+  const currentData = DB.get(db, `data/${id}`);
+  const recovered = Array.from(DB.prefix(db, "data/"))
+    .filter(([dataKey]) => dataKey !== `data/${id}`)
+    .map(([dataKey, data]) => ({
+      dataKey,
+      data,
+      score: widgetDataScore(key, data),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (recovered && shouldReplaceWidgetData(key, currentData, recovered.data)) {
+    DB.put(db, `data/${id}`, recovered.data);
+    DB.del(db, recovered.dataKey);
+  }
+};
+
+const shouldReplaceWidgetData = (
+  key: string,
+  currentData: unknown,
+  nextData: unknown,
+): boolean =>
+  nextData !== undefined && widgetDataScore(key, nextData) > widgetDataScore(key, currentData);
+
+const widgetDataScore = (key: string, data: unknown): number => {
+  if (!data || typeof data !== "object") return 0;
+
+  switch (key) {
+    case "widget/notes": {
+      const items = (data as { items?: unknown }).items;
+      return Array.isArray(items) ? items.length : 0;
+    }
+    case "widget/planOfDay": {
+      const plans = (data as { plans?: unknown }).plans;
+      if (!plans || typeof plans !== "object" || Array.isArray(plans)) return 0;
+      return Object.values(plans).filter(
+        (plan) => typeof plan === "string" && plan.trim() !== "",
+      ).length;
+    }
+    default:
+      return 0;
   }
 };
 

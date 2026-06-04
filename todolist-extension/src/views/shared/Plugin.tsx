@@ -7,12 +7,13 @@ import Crashed from "./Crashed";
 
 type Props = {
   id: string;
+  keyName?: string;
   component: React.ComponentType<API<any, any>>;
 };
 
-const Plugin: React.FC<Props> = ({ id, component: Component }) => {
+const Plugin: React.FC<Props> = ({ id, keyName, component: Component }) => {
   // Create plugin API
-  const api = useApi(id);
+  const api = useApi(id, keyName);
 
   return <Component {...api} />;
 };

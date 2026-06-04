@@ -3,6 +3,7 @@ import { FormattedMessage } from "react-intl";
 import { UiContext } from "../../contexts/ui";
 import {
   addWidget,
+  ensureSingletonWidget,
   exportStore,
   importStore,
   removeWidget,
@@ -44,6 +45,9 @@ const Settings: React.FC = () => {
     )?.key ?? "";
 
   const setSideFeature = (side: Side, nextKey: "" | SideFeatureKey) => {
+    sideFeatures.forEach((feature) => ensureSingletonWidget(feature.key));
+
+    const currentWidgets = selectWidgets();
     const position = sidePositions[side];
     const selectedSideKeys = new Set(
       (["left", "right"] as Side[])
@@ -52,7 +56,7 @@ const Settings: React.FC = () => {
         .filter(Boolean),
     );
 
-    widgets
+    currentWidgets
       .filter(
         (widget) =>
           sideFeatures.some((feature) => feature.key === widget.key) &&
@@ -61,7 +65,7 @@ const Settings: React.FC = () => {
       )
       .forEach((widget) => removeWidget(widget.id));
 
-    widgets
+    currentWidgets
       .filter(
         (widget) =>
           sideFeatures.some((feature) => feature.key === widget.key) &&
@@ -72,7 +76,7 @@ const Settings: React.FC = () => {
 
     if (!nextKey) return;
 
-    let widget = widgets.find((item) => item.key === nextKey);
+    let widget = selectWidgets().find((item) => item.key === nextKey);
     if (!widget) {
       addWidget(nextKey);
       widget = selectWidgets().find((item) => item.key === nextKey);
@@ -173,15 +177,13 @@ const Settings: React.FC = () => {
                   }
                 >
                   <option value="">None</option>
-                  {sideFeatures.map((feature) => (
-                    <option
-                      key={feature.key}
-                      value={feature.key}
-                      disabled={otherValue === feature.key}
-                    >
-                      {feature.name}
-                    </option>
-                  ))}
+                  {sideFeatures
+                    .filter((feature) => otherValue !== feature.key)
+                    .map((feature) => (
+                      <option key={feature.key} value={feature.key}>
+                        {feature.name}
+                      </option>
+                    ))}
                 </select>
               </label>
             );

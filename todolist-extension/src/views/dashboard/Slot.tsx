@@ -42,7 +42,7 @@ const Slot: React.FC<Props> = ({ position, widgets }) => {
         if (!config) return null;
         return (
           <Widget key={id} {...display}>
-            <Plugin id={id} component={config.dashboardComponent} />
+            <Plugin id={id} keyName={key} component={config.dashboardComponent} />
           </Widget>
         );
       })}
