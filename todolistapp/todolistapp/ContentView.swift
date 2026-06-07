@@ -53,10 +53,6 @@ private struct SyncButtons: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            if store.isSyncing {
-                ProgressView()
-            }
-
             Button {
                 Task { await store.refresh() }
             } label: {
