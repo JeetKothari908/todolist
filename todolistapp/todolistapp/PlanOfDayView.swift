@@ -4,7 +4,10 @@ struct PlanOfDayView: View {
     @EnvironmentObject private var store: SyncStore
     @State private var selectedDate = Date()
     @State private var contents = ""
+    @State private var editorFrame = CGRect.zero
     @FocusState private var isEditingPlan: Bool
+
+    private let formCoordinateSpace = "planOfDayForm"
 
     private var selectedKey: String {
         TodoListView.dateKey(selectedDate)
@@ -18,10 +21,30 @@ struct PlanOfDayView: View {
                 TextEditor(text: $contents)
                     .focused($isEditingPlan)
                     .frame(minHeight: 300)
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: PlanEditorFramePreferenceKey.self,
+                                value: proxy.frame(in: .named(formCoordinateSpace))
+                            )
+                        }
+                    )
                     .onChange(of: contents) { _, newValue in
-                        savePlanChange(newValue)
+                        store.updatePlan(date: selectedKey, contents: newValue)
                     }
             }
+        }
+        .coordinateSpace(name: formCoordinateSpace)
+        .simultaneousGesture(
+            SpatialTapGesture(coordinateSpace: .named(formCoordinateSpace))
+                .onEnded { value in
+                    if !editorFrame.contains(value.location) {
+                        isEditingPlan = false
+                    }
+                }
+        )
+        .onPreferenceChange(PlanEditorFramePreferenceKey.self) { frame in
+            editorFrame = frame
         }
         .navigationTitle("Plan of the Day")
         .toolbar {
@@ -46,18 +69,12 @@ struct PlanOfDayView: View {
         }
     }
 
-    private func savePlanChange(_ newValue: String) {
-        guard newValue.hasSuffix("\n\n") else {
-            store.updatePlan(date: selectedKey, contents: newValue)
-            return
-        }
+}
 
-        let savedValue = String(newValue.dropLast(2))
-        if contents != savedValue {
-            contents = savedValue
-        }
-        store.updatePlan(date: selectedKey, contents: savedValue)
-        isEditingPlan = false
+private struct PlanEditorFramePreferenceKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
     }
-
 }
