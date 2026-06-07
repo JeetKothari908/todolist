@@ -1,13 +1,11 @@
 import SwiftUI
+import UIKit
 
 struct PlanOfDayView: View {
     @EnvironmentObject private var store: SyncStore
     @State private var selectedDate = Date()
     @State private var contents = ""
-    @State private var editorFrame = CGRect.zero
     @FocusState private var isEditingPlan: Bool
-
-    private let formCoordinateSpace = "planOfDayForm"
 
     private var selectedKey: String {
         TodoListView.dateKey(selectedDate)
@@ -21,31 +19,12 @@ struct PlanOfDayView: View {
                 TextEditor(text: $contents)
                     .focused($isEditingPlan)
                     .frame(minHeight: 300)
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear.preference(
-                                key: PlanEditorFramePreferenceKey.self,
-                                value: proxy.frame(in: .named(formCoordinateSpace))
-                            )
-                        }
-                    )
                     .onChange(of: contents) { _, newValue in
                         store.updatePlan(date: selectedKey, contents: newValue)
                     }
             }
         }
-        .coordinateSpace(name: formCoordinateSpace)
-        .simultaneousGesture(
-            SpatialTapGesture(coordinateSpace: .named(formCoordinateSpace))
-                .onEnded { value in
-                    if !editorFrame.contains(value.location) {
-                        isEditingPlan = false
-                    }
-                }
-        )
-        .onPreferenceChange(PlanEditorFramePreferenceKey.self) { frame in
-            editorFrame = frame
-        }
+        .background(PlanOutsideTapDismissView(isEditingPlan: $isEditingPlan))
         .navigationTitle("Plan of the Day")
         .toolbar {
             SyncToolbar()
@@ -71,10 +50,67 @@ struct PlanOfDayView: View {
 
 }
 
-private struct PlanEditorFramePreferenceKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
+private struct PlanOutsideTapDismissView: UIViewRepresentable {
+    var isEditingPlan: FocusState<Bool>.Binding
 
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        context.coordinator.hostView = view
+        DispatchQueue.main.async {
+            context.coordinator.attachRecognizerIfNeeded()
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.parent = self
+        DispatchQueue.main.async {
+            context.coordinator.attachRecognizerIfNeeded()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var parent: PlanOutsideTapDismissView
+        weak var hostView: UIView?
+        private weak var recognizer: UITapGestureRecognizer?
+
+        init(parent: PlanOutsideTapDismissView) {
+            self.parent = parent
+        }
+
+        func attachRecognizerIfNeeded() {
+            guard recognizer == nil, let window = hostView?.window else { return }
+            let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+            recognizer.cancelsTouchesInView = false
+            recognizer.delegate = self
+            window.addGestureRecognizer(recognizer)
+            self.recognizer = recognizer
+        }
+
+        @objc private func handleTap() {
+            parent.isEditingPlan.wrappedValue = false
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            !touch.view.isDescendant(of: UITextView.self)
+        }
+    }
+}
+
+private extension Optional where Wrapped == UIView {
+    func isDescendant(of viewType: UIView.Type) -> Bool {
+        var view = self
+        while let current = view {
+            if current.isKind(of: viewType) {
+                return true
+            }
+            view = current.superview
+        }
+        return false
     }
 }
