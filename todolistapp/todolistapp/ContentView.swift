@@ -58,7 +58,7 @@ private struct SyncButtons: View {
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
-            .disabled(store.isSyncing)
+            .allowsHitTesting(!store.isSyncing)
 
             Button {
                 settingsOpen = true
