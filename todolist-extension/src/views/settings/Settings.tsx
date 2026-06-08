@@ -12,6 +12,12 @@ import {
 } from "../../db/action";
 import { selectWidgets } from "../../db/select";
 import { db, WidgetPosition } from "../../db/state";
+import {
+  getSyncSettings,
+  setSyncSettings,
+  subscribeSyncSettings,
+  syncSettingsReady,
+} from "../../db/syncSettings";
 import { useKeyPress } from "../../hooks";
 import { useKey, useSelector } from "../../lib/db/react";
 import Background from "./Background";
@@ -36,6 +42,63 @@ const Settings: React.FC = () => {
   const { toggleSettings } = React.useContext(UiContext);
   const [showQuotes, setShowQuotes] = useKey(db, "showQuotes");
   const widgets = useSelector(db, selectWidgets);
+  const [syncSettings, setLocalSyncSettings] =
+    React.useState(getSyncSettings);
+  const [syncDraft, setSyncDraft] = React.useState(() => ({
+    url: getSyncSettings().url,
+    token: getSyncSettings().token,
+  }));
+
+  React.useEffect(() => {
+    let mounted = true;
+    syncSettingsReady.then(() => {
+      if (!mounted) return;
+
+      const next = getSyncSettings();
+      setLocalSyncSettings(next);
+      setSyncDraft({ url: next.url, token: next.token });
+    });
+
+    const unsubscribe = subscribeSyncSettings(() => {
+      const next = getSyncSettings();
+      setLocalSyncSettings(next);
+      setSyncDraft({ url: next.url, token: next.token });
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const updateSyncSettings = (next: Parameters<typeof setSyncSettings>[0]) => {
+    setSyncSettings(next).catch((error) => {
+      alert(
+        `Cannot save sync settings: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
+    });
+  };
+
+  const commitSyncDraft = () => {
+    if (
+      syncDraft.url === syncSettings.url &&
+      syncDraft.token === syncSettings.token
+    )
+      return;
+
+    updateSyncSettings(syncDraft);
+  };
+
+  const commitSyncDraftOnEnter = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (event.key === "Enter") {
+      event.currentTarget.blur();
+      commitSyncDraft();
+    }
+  };
 
   const getSideFeature = (side: Side) =>
     widgets.find(
@@ -188,6 +251,58 @@ const Settings: React.FC = () => {
               </label>
             );
           })}
+        </div>
+
+        <h2>Sync</h2>
+        <div className="sync-settings">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={syncSettings.enabled}
+              onChange={(event) =>
+                updateSyncSettings({
+                  enabled: event.target.checked,
+                  ...syncDraft,
+                })
+              }
+            />
+            Use Tailscale sync
+          </label>
+          <p className="info">
+            When this is off, the extension saves everything locally and does
+            not contact the sync server.
+          </p>
+          <label>
+            Server URL
+            <input
+              type="url"
+              placeholder="https://raspberrypi.tailnet.ts.net"
+              value={syncDraft.url}
+              onChange={(event) =>
+                setSyncDraft((draft) => ({
+                  ...draft,
+                  url: event.target.value,
+                }))
+              }
+              onBlur={commitSyncDraft}
+              onKeyDown={commitSyncDraftOnEnter}
+            />
+          </label>
+          <label>
+            Auth token
+            <input
+              type="password"
+              value={syncDraft.token}
+              onChange={(event) =>
+                setSyncDraft((draft) => ({
+                  ...draft,
+                  token: event.target.value,
+                }))
+              }
+              onBlur={commitSyncDraft}
+              onKeyDown={commitSyncDraftOnEnter}
+            />
+          </label>
         </div>
 
         <p style={{ marginBottom: "2rem" }}>

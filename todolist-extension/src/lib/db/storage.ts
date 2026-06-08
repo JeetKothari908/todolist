@@ -174,6 +174,10 @@ export interface RemoteSyncOptions {
   token?: string;
 }
 
+export interface RemoteSyncSession extends Stream.Stream<StorageError> {
+  stop: () => void;
+}
+
 interface RemoteSnapshot {
   changes: RemoteChange[];
 }
@@ -195,9 +199,13 @@ export const remoteSync = async (
   db: DB.Database,
   name: string,
   options: RemoteSyncOptions,
-): Promise<Stream.Stream<StorageError>> => {
+): Promise<RemoteSyncSession> => {
   const baseUrl = options.url.replace(/\/$/, "");
   const errors = Stream.init<StorageError>();
+  let active = true;
+  let applyingRemote = false;
+  let initialSyncComplete = false;
+  const queuedLocalChanges = new Map<string, unknown>();
 
   const mapError = (message: string, err: unknown) =>
     new StorageError(`Remote sync: ${name}: ${message}`, {
@@ -224,11 +232,33 @@ export const remoteSync = async (
     return res.json();
   };
 
-  try {
+  const pushChanges = (changes: Iterable<DB.Change>) => {
+    if (!active) return;
+
+    const body = {
+      changes: Array.from(changes).map(([key, value]) =>
+        value === undefined ? { key, deleted: true } : { key, value },
+      ),
+    };
+    if (body.changes.length === 0) return;
+
+    console.info("[todo-sync] pushing local changes:", body.changes.length);
+
+    request(`/v1/stores/${storePath}/changes`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).catch((error) =>
+      Stream.publish(errors, mapError("Cannot push local changes", error)),
+    );
+  };
+
+  const runInitialSync = async (): Promise<void> => {
     console.info("[todo-sync] starting remote sync:", baseUrl);
     const snapshot = await request<RemoteSnapshot>(
       `/v1/stores/${storePath}`,
     );
+    if (!active) return;
+
     const remoteChanges = Array.isArray(snapshot.changes)
       ? snapshot.changes.filter(isRemoteChange)
       : [];
@@ -264,14 +294,18 @@ export const remoteSync = async (
           changes: seedChanges,
         }),
       });
+      if (!active) return;
+
       console.info("[todo-sync] seeded remote changes:", seedChanges.length);
     } else {
+      applyingRemote = true;
       DB.atomic(db, (trx) => {
         for (const change of snapshotChanges) {
           if (change.deleted) DB.del(trx, change.key);
           else DB.put(trx, change.key, change.value);
         }
       });
+      applyingRemote = false;
     }
 
     if (legacyIosWidgetDeletions.length > 0) {
@@ -281,37 +315,50 @@ export const remoteSync = async (
           changes: legacyIosWidgetDeletions,
         }),
       });
+      if (!active) return;
+
       console.info(
         "[todo-sync] removed legacy iOS plan widget records:",
         legacyIosWidgetDeletions.length,
       );
     }
-  } catch (error) {
+
+    initialSyncComplete = true;
+    pushChanges(queuedLocalChanges);
+    queuedLocalChanges.clear();
+  };
+
+  runInitialSync().catch((error) => {
+    applyingRemote = false;
+    initialSyncComplete = true;
+    if (!active) return;
+
     const syncError = mapError("Cannot sync initial snapshot", error);
     console.error(syncError);
     setTimeout(() => Stream.publish(errors, syncError), 0);
-  }
+  });
 
-  DB.listen(
+  const unsubscribe = DB.listen(
     db,
     batch((changes) => {
-      const body = {
-        changes: Array.from(changes).map(([key, value]) =>
-          value === undefined ? { key, deleted: true } : { key, value },
-        ),
-      };
-      console.info("[todo-sync] pushing local changes:", body.changes.length);
+      if (!active || applyingRemote) return;
 
-      request(`/v1/stores/${storePath}/changes`, {
-        method: "POST",
-        body: JSON.stringify(body),
-      }).catch((error) =>
-        Stream.publish(errors, mapError("Cannot push local changes", error)),
-      );
+      if (!initialSyncComplete) {
+        for (const [key, value] of changes) queuedLocalChanges.set(key, value);
+        return;
+      }
+
+      pushChanges(changes);
     }, remoteSyncBatchTimeout),
   );
 
-  return errors;
+  return {
+    ...errors,
+    stop: () => {
+      active = false;
+      unsubscribe();
+    },
+  };
 };
 
 const syncBatchTimeout = 1500;

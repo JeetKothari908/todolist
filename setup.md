@@ -24,7 +24,7 @@ todolist-extension/dist/chromium
 
 3. Open a new tab.
 
-If sync is configured and the sync server is reachable, the extension should pull the latest synced state on startup.
+The extension works as a standalone local app by default. To use the private sync server, open Settings, go to Sync, turn on "Use Tailscale sync", enter the server URL and auth token, and keep Tailscale connected when you want remote syncing.
 
 For development, run Webpack in watch mode:
 
@@ -291,13 +291,6 @@ npm install
 npm run build:chromium
 ```
 
-The `.env` file already contains:
-
-```env
-SYNC_SERVER_URL=https://raspberrypi.tail2db278.ts.net
-SYNC_AUTH_TOKEN=jfiweokgerhotrwhtr
-```
-
 6. Load the extension:
 
 Open `chrome://extensions`, enable Developer mode, click "Load unpacked", and select:
@@ -306,14 +299,24 @@ Open `chrome://extensions`, enable Developer mode, click "Load unpacked", and se
 PATH\TO\todolist-extension\dist\chromium
 ```
 
-7. Open a new tab. It should pull the latest state from the Pi.
+7. Open a new tab, open Settings, go to Sync, and turn on "Use Tailscale sync".
+
+Use these values:
+
+```text
+Server URL: https://raspberrypi.tail2db278.ts.net
+Auth token: jfiweokgerhotrwhtr
+```
+
+The extension can still be used with this setting off. When sync is on and the Pi is reachable, it should pull the latest state from the Pi.
 
 ## Verify Sync
 
-1. Add a test todo on one computer.
-2. Wait a few seconds.
-3. Open or reload a new tab on the other computer.
-4. The test todo should appear.
+1. Turn on "Use Tailscale sync" in the extension settings on both computers.
+2. Add a test todo on one computer.
+3. Wait a few seconds.
+4. Open or reload a new tab on the other computer.
+5. The test todo should appear.
 
 You can also verify the server received data:
 
@@ -331,6 +334,12 @@ A healthy startup looks like:
 [todo-sync] enabled: https://raspberrypi.tail2db278.ts.net
 [todo-sync] starting remote sync: https://raspberrypi.tail2db278.ts.net
 [todo-sync] request: GET /v1/stores/tabliss/config
+```
+
+With sync turned off, a healthy standalone startup logs:
+
+```text
+[todo-sync] disabled in settings
 ```
 
 If no `[todo-sync]` logs appear, Chrome is probably running an older unpacked extension. Remove it from `chrome://extensions`, rebuild with `npm run build:chromium` from `todolist-extension`, and load `todolist-extension/dist/chromium` again.

@@ -3,7 +3,7 @@ import { defineMessages, useIntl } from "react-intl";
 import { usePushError } from "../api";
 import { UiContext } from "../contexts/ui";
 import { migrate } from "../db/migrate";
-import { cacheStorage, dbStorage } from "../db/state";
+import { cacheStorage, dbStorage, syncErrors } from "../db/state";
 import { Stream } from "../lib";
 import { Dashboard } from "./dashboard";
 import { Settings } from "./settings";
@@ -74,6 +74,15 @@ const Root: React.FC = () => {
             false,
           ),
         ),
+      Promise.resolve(
+        Stream.subscribe(
+          syncErrors,
+          handleError(
+            "Cannot sync with the configured server. Local changes will still be saved on this device.",
+            false,
+          ),
+        ),
+      ),
     ]);
 
     // Storage is ready
@@ -84,9 +93,10 @@ const Root: React.FC = () => {
 
     return () => {
       // Remove error subscriptions
-      subscriptions.then(([dbSub, cacheSub]) => {
+      subscriptions.then(([dbSub, cacheSub, syncSub]) => {
         if (dbSub) dbSub();
         if (cacheSub) cacheSub();
+        if (syncSub) syncSub();
       });
     };
   }, []);

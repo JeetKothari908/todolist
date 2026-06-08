@@ -1,5 +1,11 @@
 import { DB, Storage, Stream } from "../lib";
 import { defaultLocale } from "../locales";
+import {
+  getSyncSettings,
+  subscribeSyncSettings,
+  SyncSettings,
+  syncSettingsReady,
+} from "./syncSettings";
 
 /**
  * Database state
@@ -118,24 +124,59 @@ const localDbStorage =
     ? Storage.indexeddb(db, "tabliss/config")
     : Storage.extensionLocal(db, "tabliss/config");
 
-export const dbStorage = localDbStorage.then(async (localErrors) => {
-  if (!SYNC_SERVER_URL) {
-    console.info("[todo-sync] disabled: SYNC_SERVER_URL is empty");
-    return localErrors;
+export const syncErrors = Stream.init<Error>();
+
+let stopRemoteSync: (() => void) | null = null;
+let remoteSyncGeneration = 0;
+
+const configureRemoteSync = async (settings: SyncSettings): Promise<void> => {
+  remoteSyncGeneration += 1;
+  const generation = remoteSyncGeneration;
+
+  if (stopRemoteSync) {
+    stopRemoteSync();
+    stopRemoteSync = null;
   }
 
-  console.info("[todo-sync] enabled:", SYNC_SERVER_URL);
+  const url = settings.url.trim();
+  if (!settings.enabled) {
+    console.info("[todo-sync] disabled in settings");
+    return;
+  }
+
+  if (!url) {
+    console.info("[todo-sync] disabled: sync server URL is empty");
+    return;
+  }
+
+  console.info("[todo-sync] enabled:", url);
 
   const remoteErrors = await Storage.remoteSync(db, "tabliss/config", {
-    url: SYNC_SERVER_URL,
-    token: SYNC_AUTH_TOKEN || undefined,
+    url,
+    token: settings.token.trim() || undefined,
   });
-  const errors = Stream.init<Error>();
 
-  Stream.subscribe(localErrors, (error) => Stream.publish(errors, error));
-  Stream.subscribe(remoteErrors, (error) => Stream.publish(errors, error));
+  if (generation !== remoteSyncGeneration) {
+    remoteErrors.stop();
+    return;
+  }
 
-  return errors;
+  const unsubscribeErrors = Stream.subscribe(remoteErrors, (error) =>
+    Stream.publish(syncErrors, error),
+  );
+
+  stopRemoteSync = () => {
+    unsubscribeErrors();
+    remoteErrors.stop();
+  };
+};
+
+export const dbStorage = localDbStorage.then(async (localErrors) => {
+  await syncSettingsReady;
+  configureRemoteSync(getSyncSettings());
+  subscribeSyncSettings(() => configureRemoteSync(getSyncSettings()));
+
+  return localErrors;
 });
 
 export const cacheStorage =
