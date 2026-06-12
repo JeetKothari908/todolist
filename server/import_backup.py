@@ -1,11 +1,12 @@
 import json
+import os
 import sqlite3
 import sys
 import time
 from pathlib import Path
 
 
-DB_PATH = Path("todolist.sqlite3")
+DB_PATH = Path(os.getenv("LOCALFLOW_DB", "localflow.sqlite3"))
 STORE = "tabliss/config"
 PREFIX = f"{STORE}/"
 

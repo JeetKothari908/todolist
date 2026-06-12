@@ -2,5 +2,5 @@
 /server/*.sqlite
 /server/__pycache__/
 /server/.venv/
-/todolist-extension/dist/
-/todolist-extension/node_modules/
+/extension/dist/
+/extension/node_modules/

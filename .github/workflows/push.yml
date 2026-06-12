@@ -11,11 +11,11 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: todolist-extension/package-lock.json
+          cache-dependency-path: extension/package-lock.json
       - run: npm ci
-        working-directory: todolist-extension
+        working-directory: extension
       - run: npm test
-        working-directory: todolist-extension
+        working-directory: extension
   build:
     name: Build ${{ matrix.build_target }}
     runs-on: ubuntu-latest
@@ -31,15 +31,15 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: todolist-extension/package-lock.json
+          cache-dependency-path: extension/package-lock.json
       - run: npm ci
-        working-directory: todolist-extension
+        working-directory: extension
       - run: npm run build:${{ matrix.build_target }}
-        working-directory: todolist-extension
+        working-directory: extension
         env:
           GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY }}
           UNSPLASH_API_KEY: ${{ secrets.UNSPLASH_API_KEY }}
       - uses: actions/upload-artifact@v4
         with:
-          name: todolist-extension-${{ matrix.build_target }}
-          path: todolist-extension/dist/${{ matrix.build_target }}
+          name: extension-${{ matrix.build_target }}
+          path: extension/dist/${{ matrix.build_target }}

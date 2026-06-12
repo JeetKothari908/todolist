@@ -1,15 +1,17 @@
-# Todo List Sync Server
+# LocalFlow Sync Server
 
-FastAPI and SQLite sync server for the extension.
+FastAPI and SQLite sync server for LocalFlow.
+
+The server uses `LOCALFLOW_TOKEN` for auth and `LOCALFLOW_DB` to override the SQLite database path.
 
 ## Raspberry Pi setup
 
 ```bash
-cd ~/todolist-sync/server
+cd ~/localflow-sync/server
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export TODOLIST_TOKEN='replace-with-your-token'
+export LOCALFLOW_TOKEN='replace-with-your-token'
 uvicorn app:app --host 127.0.0.1 --port 8787
 ```
 

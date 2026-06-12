@@ -9,10 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 
-DB_PATH = os.getenv("TODOLIST_DB", "todolist.sqlite3")
-AUTH_TOKEN = os.getenv("TODOLIST_TOKEN", "")
+DB_PATH = os.getenv("LOCALFLOW_DB", "localflow.sqlite3")
+AUTH_TOKEN = os.getenv("LOCALFLOW_TOKEN", "")
 
-app = FastAPI()
+app = FastAPI(title="LocalFlow Sync API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

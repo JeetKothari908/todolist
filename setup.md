@@ -1,6 +1,6 @@
 # Setup
 
-This guide contains all setup instructions for the project: building the browser extension, running the sync server, opening the iOS app, setting up the Raspberry Pi, restarting the stack later, verifying sync, and debugging common setup issues.
+This guide contains all setup instructions for LocalFlow: building the browser extension, running the sync server, opening the iOS app, setting up the Raspberry Pi, restarting the stack later, verifying sync, and debugging common setup issues.
 
 ## Browser Extension
 
@@ -9,7 +9,7 @@ Use this when installing or rebuilding the Chrome/Chromium extension locally.
 1. Install dependencies and build the Chromium bundle from the repo root:
 
 ```powershell
-cd todolist-extension
+cd extension
 npm install
 npm run build:chromium
 ```
@@ -19,17 +19,17 @@ npm run build:chromium
 Open `chrome://extensions`, enable Developer mode, click "Load unpacked", and select:
 
 ```text
-todolist-extension/dist/chromium
+extension/dist/chromium
 ```
 
 3. Open a new tab.
 
-The extension works as a standalone local app by default. To use the private sync server, open Settings, go to Sync, turn on "Use Tailscale sync", enter the server URL and auth token, and keep Tailscale connected when you want remote syncing.
+The LocalFlow extension works as a standalone local app by default. To use the private sync server, open Settings, go to Sync, turn on "Use Tailscale sync", enter the server URL and auth token, and keep Tailscale connected when you want remote syncing.
 
 For development, run Webpack in watch mode:
 
 ```powershell
-cd todolist-extension
+cd extension
 npm run dev:chromium
 ```
 
@@ -54,7 +54,7 @@ cd server
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export TODOLIST_TOKEN='replace-with-your-token'
+export LOCALFLOW_TOKEN='replace-with-your-token'
 uvicorn app:app --host 127.0.0.1 --port 8787
 ```
 
@@ -65,7 +65,7 @@ cd server
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-$env:TODOLIST_TOKEN = 'replace-with-your-token'
+$env:LOCALFLOW_TOKEN = 'replace-with-your-token'
 uvicorn app:app --host 127.0.0.1 --port 8787
 ```
 
@@ -83,10 +83,10 @@ The health check should return `{"ok":true}`. The config endpoint should return 
 Open the Xcode project:
 
 ```text
-todolistapp/todolistapp.xcodeproj
+app/app.xcodeproj
 ```
 
-The app uses SwiftUI and `SyncStore` to talk to the same sync API as the extension. Its main tabs are:
+The LocalFlow app uses SwiftUI and `SyncStore` to talk to the same sync API as the extension. Its main tabs are:
 
 - Todos
 - Notes
@@ -133,13 +133,13 @@ Follow the login URL that Tailscale prints.
 Run this from Windows PowerShell in the repo folder:
 
 ```powershell
-scp -r .\server jkothari@raspberrypi.local:~/todolist-sync/
+scp -r .\server jkothari@raspberrypi.local:~/localflow-sync/
 ```
 
 6. On the Pi, create the Python environment and install the server dependencies:
 
 ```bash
-cd ~/todolist-sync/server
+cd ~/localflow-sync/server
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -148,16 +148,16 @@ pip install -r requirements.txt
 7. Start the sync API:
 
 ```bash
-cd ~/todolist-sync/server
+cd ~/localflow-sync/server
 source .venv/bin/activate
-export TODOLIST_TOKEN='jfiweokgerhotrwhtr'
+export LOCALFLOW_TOKEN='jfiweokgerhotrwhtr'
 uvicorn app:app --host 127.0.0.1 --port 8787
 ```
 
 Leave this terminal running. The SQLite database will be created automatically at:
 
 ```text
-~/todolist-sync/server/todolist.sqlite3
+~/localflow-sync/server/localflow.sqlite3
 ```
 
 8. In a second SSH terminal, expose the local API privately through Tailscale Serve:
@@ -183,35 +183,35 @@ The manual `uvicorn` command works, but it stops when that SSH terminal closes. 
 1. Create an environment file:
 
 ```bash
-sudo nano /etc/todolist-sync.env
+sudo nano /etc/localflow-sync.env
 ```
 
 Add:
 
 ```bash
-TODOLIST_TOKEN=jfiweokgerhotrwhtr
-TODOLIST_DB=/home/jkothari/todolist-sync/server/todolist.sqlite3
+LOCALFLOW_TOKEN=jfiweokgerhotrwhtr
+LOCALFLOW_DB=/home/jkothari/localflow-sync/server/localflow.sqlite3
 ```
 
 2. Create the service:
 
 ```bash
-sudo nano /etc/systemd/system/todolist-sync.service
+sudo nano /etc/systemd/system/localflow-sync.service
 ```
 
 Add:
 
 ```ini
 [Unit]
-Description=Todo List Sync API
+Description=LocalFlow Sync API
 After=network-online.target tailscaled.service
 Wants=network-online.target
 
 [Service]
 User=jkothari
-WorkingDirectory=/home/jkothari/todolist-sync/server
-EnvironmentFile=/etc/todolist-sync.env
-ExecStart=/home/jkothari/todolist-sync/server/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8787
+WorkingDirectory=/home/jkothari/localflow-sync/server
+EnvironmentFile=/etc/localflow-sync.env
+ExecStart=/home/jkothari/localflow-sync/server/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8787
 Restart=always
 RestartSec=5
 
@@ -223,8 +223,8 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now todolist-sync
-sudo systemctl status todolist-sync
+sudo systemctl enable --now localflow-sync
+sudo systemctl status localflow-sync
 ```
 
 4. Make sure Tailscale Serve is still pointing at the API:
@@ -248,9 +248,9 @@ If `.local` does not resolve, use the Pi's Tailscale name or IP from the Tailsca
 3. Start the sync API:
 
 ```bash
-cd ~/todolist-sync/server
+cd ~/localflow-sync/server
 source .venv/bin/activate
-export TODOLIST_TOKEN='jfiweokgerhotrwhtr'
+export LOCALFLOW_TOKEN='jfiweokgerhotrwhtr'
 uvicorn app:app --host 127.0.0.1 --port 8787
 ```
 
@@ -286,7 +286,7 @@ curl.exe "https://raspberrypi.tail2db278.ts.net/health"
 5. From the repo folder, install dependencies and build:
 
 ```powershell
-cd "PATH\TO\todolist-extension"
+cd "PATH\TO\extension"
 npm install
 npm run build:chromium
 ```
@@ -296,7 +296,7 @@ npm run build:chromium
 Open `chrome://extensions`, enable Developer mode, click "Load unpacked", and select:
 
 ```text
-PATH\TO\todolist-extension\dist\chromium
+PATH\TO\extension\dist\chromium
 ```
 
 7. Open a new tab, open Settings, go to Sync, and turn on "Use Tailscale sync".
@@ -342,7 +342,7 @@ With sync turned off, a healthy standalone startup logs:
 [todo-sync] disabled in settings
 ```
 
-If no `[todo-sync]` logs appear, Chrome is probably running an older unpacked extension. Remove it from `chrome://extensions`, rebuild with `npm run build:chromium` from `todolist-extension`, and load `todolist-extension/dist/chromium` again.
+If no `[todo-sync]` logs appear, Chrome is probably running an older unpacked extension. Remove it from `chrome://extensions`, rebuild with `npm run build:chromium` from `extension`, and load `extension/dist/chromium` again.
 
 If Tailscale Serve stops working, rerun:
 

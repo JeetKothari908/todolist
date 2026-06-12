@@ -49,8 +49,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- Tabliss going wild when you change the language or time zone
-- Language changes no longer require Tabliss to reload
+- LocalFlow going wild when you change the language or time zone
+- Language changes no longer require LocalFlow to reload
 - Time zone updates are now instant
 
 ## [2.4.1] - 2022-03-25
@@ -100,7 +100,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 - Added IP Info widget - thanks @bkis
 - Current weather conditions are back thanks to Open-Meteo
-- Tabliss can now be displayed as your homepage in Firefox
+- LocalFlow can now be displayed as your homepage in Firefox
 - Unsplash now supports selecting a topic for background - thanks @betatim
 - Added MetaGer search engine - thanks @teknowledgist
 - Added bible verses as an option for quotes - thanks @Staubgeborener
@@ -111,8 +111,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- New settings storage engine to reduce instances of Tabliss loosing your settings
-- Tabliss will now remember if you have hidden your widgets
+- New settings storage engine to reduce instances of LocalFlow loosing your settings
+- LocalFlow will now remember if you have hidden your widgets
 - Background blur is now disabled when widgets are hidden
 - Unsplash links now open in the same window - thanks @elsiehupp
 - Chinese translation updates - thanks @mysmlz
@@ -196,7 +196,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [2.0.0] - 2020-04-13
 
-Tabliss has essentially been rewritten from scratch to be faster, more modern, and easier to contribute too.
+LocalFlow has essentially been rewritten from scratch to be faster, more modern, and easier to contribute too.
 
 ### Added
 
@@ -227,7 +227,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 
 - Settings not saving if using "always browse in private mode" in Firefox.
 - Search with non URI-encodable characters - thanks @Thanaen
-- Various bug fixes across Tabliss.
+- Various bug fixes across LocalFlow.
 
 ### Remove
 
@@ -313,7 +313,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 
 ### Changed
 
-- Tabliss no longer controls the homepage in Firefox.
+- LocalFlow no longer controls the homepage in Firefox.
 - Feedback widget validation (so I stop getting spammed empty suggestions!).
 - Upload image background no longer has a default image.
 
@@ -344,7 +344,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 
 - Translations for Polish, Italian, Turkish and Spanish!
 - Selectable icons for Quick Links.
-- Custom CSS widget for advanced users to further customise the look of Tabliss.
+- Custom CSS widget for advanced users to further customise the look of LocalFlow.
 - Startpage as a search engine provider.
 - Filled in missing timezones and a message alerting of timezones unsupported if selected.
 
@@ -379,7 +379,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 ### Changed
 
 - Timezone option moved to top level and now effects both the time and greeting widgets.
-- Tabliss is now licensed under the GNU General Public License v3!
+- LocalFlow is now licensed under the GNU General Public License v3!
 
 ## [1.10.1] - 2018-02-10
 
@@ -446,7 +446,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 
 ### Fixed
 
-- Tabliss getting confused when you search for exactly `http://` or `https://`.
+- LocalFlow getting confused when you search for exactly `http://` or `https://`.
 - Possible issue trying to display incomplete/corrupt gifs.
 - An error when cancelling an image upload.
 - Fallback for time widget with an unknown timezone.
@@ -470,7 +470,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 
 ### Changed
 
-- Tabliss now fades in from black instead of white - saving you 0.25 seconds of being blinded!
+- LocalFlow now fades in from black instead of white - saving you 0.25 seconds of being blinded!
 
 ## [1.5.1] - 2017-11-20
 
@@ -503,7 +503,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 ### Changed
 
 - Message widget now accepts multi-line input and respects your spacing.
-- Improved the favicon to a high resolution Tabliss logo.
+- Improved the favicon to a high resolution LocalFlow logo.
 
 ## [1.3.0] - 2017-10-16
 
@@ -515,7 +515,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 ### Changed
 
 - Unsplash darken overlay is now more subtle.
-- Tabliss now displays as your homepage in Firefox.
+- LocalFlow now displays as your homepage in Firefox.
 
 ### Removed
 
@@ -565,7 +565,7 @@ Tabliss has essentially been rewritten from scratch to be faster, more modern, a
 
 ### Changed
 
-- Official collection for Unsplash to Tabliss Official.
+- Official collection for Unsplash to LocalFlow Official.
 
 ## [1.0.0] - 2017-09-02
 
